@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Leetle - Daily Problem{% endblock %}
+
+{% block content %}
+    <h1>{{ problem.title }}</h1>
+    <p>{{ problem.description }}</p>
+    <h3>Example:</h3>
+    <p><strong>Input:</strong> {{ problem.input_example }}</p>
+    <p><strong>Output:</strong> {{ problem.output_example }}</p>
+
+    <div id="timer" class="timer">Time remaining: 10:00</div>
+
+    <form method="post" action="/submit">
+        <input type="hidden" name="problem_id" value="{{ problem.id }}">
+        <label for="name">Your Name:</label>
+        <input type="text" id="name" name="name" required maxlength="50">
+        <br>
+        <label for="language">Choose Language:</label>
+        <select id="language" name="language" required>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="java">Java</option>
+        </select>
+        <br>
+        <label for="code">Your Code:</label>
+        <textarea id="code" name="code" placeholder="Write your solution here..." required></textarea>
+        <br>
+        <button type="submit">Submit Solution</button>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let startTime = new Date().getTime();
+        let timeLimit = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+        function updateTimer() {
+            let now = new Date().getTime();
+            let elapsed = now - startTime;
+            let remaining = timeLimit - elapsed;
+
+            if (remaining <= 0) {
+                document.getElementById('timer').textContent = 'Time limit exceeded!';
+                document.querySelector('form').style.display = 'none';
+            } else {
+                let minutes = Math.floor(remaining / (1000 * 60));
+                let seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                document.getElementById('timer').textContent = `Time remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+    </script>
+{% endblock %}

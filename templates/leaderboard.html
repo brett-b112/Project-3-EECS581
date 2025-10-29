@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Leetle - Leaderboard{% endblock %}
+
+{% block content %}
+    <h1>Leaderboard</h1>
+    <p>Top performers on today's challenges</p>
+    <div class="leaderboard">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Language</th>
+                    <th>Execution Time (s)</th>
+                    <th>Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for submission in submissions %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ submission.name }}</td>
+                        <td>
+                            {% if submission.language == 'python' %}
+                                🐍 Python
+                            {% elif submission.language == 'javascript' %}
+                                🟨 JavaScript
+                            {% elif submission.language == 'java' %}
+                                ☕ Java
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(submission.exec_time) }}</td>
+                        <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
