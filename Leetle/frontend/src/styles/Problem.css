@@ -1,0 +1,298 @@
+/* Problem.css - Wordle-styled component styles */
+
+.problem-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Page Title */
+.problem-page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 20px;
+  letter-spacing: -0.5px;
+}
+
+/* Loading and Error States */
+.problem-loading,
+.problem-error {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: var(--color-tone-2, #787c7e);
+}
+
+/* Two Column Layout */
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Problem Description Card */
+.problem-description-card {
+  background-color: var(--color-tone-7, #ffffff);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.problem-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 8px;
+}
+
+.problem-difficulty {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-tone-2, #787c7e);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.problem-difficulty.easy {
+  color: var(--green, #6aaa64);
+}
+
+.problem-difficulty.medium {
+  color: var(--yellow, #c9b458);
+}
+
+.problem-difficulty.hard {
+  color: var(--color-tone-2, #787c7e);
+}
+
+.problem-text {
+  font-size: 15px;
+  color: var(--color-tone-1, #000000);
+  line-height: 1.6;
+  margin-top: 16px;
+}
+
+/* Example Sections */
+.problem-example {
+  margin-top: 16px;
+  background-color: var(--color-tone-6, #f6f7f8);
+  padding: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color, #d3d6da);
+}
+
+.problem-example-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.problem-example-code {
+  background-color: var(--color-tone-5, #edeff1);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--color-tone-1, #000000);
+  overflow-x: auto;
+  border: 1px solid var(--border-color, #d3d6da);
+}
+
+/* Editor Card */
+.problem-editor-card {
+  background-color: var(--color-tone-7, #ffffff);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.problem-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.problem-select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--border-color, #d3d6da);
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--color-tone-1, #000000);
+  background-color: var(--color-tone-7, #ffffff);
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.problem-select:focus {
+  outline: none;
+  border-color: var(--color-tone-2, #787c7e);
+}
+
+/* Code Editor Header */
+.problem-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.problem-keyboard-hint {
+  font-size: 12px;
+  color: var(--color-tone-2, #787c7e);
+}
+
+.problem-kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: var(--color-tone-5, #edeff1);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--color-tone-1, #000000);
+}
+
+/* Action Buttons */
+.problem-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.problem-btn-primary {
+  background-color: var(--green, #6aaa64);
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 4px;
+  border: none;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.problem-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.problem-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.problem-btn-ghost {
+  background-color: transparent;
+  border: 1px solid var(--border-color, #d3d6da);
+  color: var(--color-tone-1, #000000);
+  padding: 12px 20px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.problem-btn-ghost:hover {
+  background-color: var(--color-tone-5, #edeff1);
+}
+
+/* Code Editor Wrapper */
+.problem-editor-wrapper {
+  margin-top: 12px;
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Result Card */
+.problem-result {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 4px;
+  background-color: var(--color-tone-7, #ffffff);
+}
+
+.problem-result p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--color-tone-1, #000000);
+}
+
+.problem-result-passed {
+  color: var(--green, #6aaa64);
+  font-weight: 700;
+}
+
+.problem-result-failed {
+  color: #d73a49;
+  font-weight: 700;
+}
+
+/* Toast Container */
+.problem-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+/* Confetti Container */
+.problem-confetti-container {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .problem-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .problem-container {
+    padding: 12px;
+  }
+
+  .problem-page-title {
+    font-size: 24px;
+  }
+
+  .problem-description-card,
+  .problem-editor-card {
+    padding: 16px;
+  }
+
+  .problem-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .problem-btn-primary,
+  .problem-btn-ghost {
+    width: 100%;
+  }
+}

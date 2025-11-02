@@ -1,0 +1,149 @@
+/* Home.css - Wordle-styled component styles */
+
+.home-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header Section */
+.home-header {
+  background-color: var(--color-tone-7, #ffffff);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.home-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.home-description {
+  font-size: 16px;
+  color: var(--color-tone-2, #787c7e);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.home-play-button {
+  display: inline-block;
+  background-color: var(--green, #6aaa64);
+  color: #ffffff;
+  padding: 14px 24px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.home-play-button:hover {
+  opacity: 0.9;
+}
+
+.home-play-button:active {
+  opacity: 0.8;
+}
+
+/* Today's Problem Card */
+.problem-card {
+  background-color: var(--color-tone-7, #ffffff);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.problem-card-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-tone-2, #787c7e);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.problem-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 4px;
+}
+
+.problem-difficulty {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.problem-difficulty.easy {
+  color: var(--green, #6aaa64);
+}
+
+.problem-difficulty.medium {
+  color: var(--yellow, #c9b458);
+}
+
+.problem-difficulty.hard {
+  color: var(--color-tone-2, #787c7e);
+}
+
+.problem-description {
+  font-size: 14px;
+  color: var(--color-tone-2, #787c7e);
+  line-height: 1.5;
+}
+
+/* Info Cards Grid */
+.info-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.info-card {
+  background-color: var(--color-tone-7, #ffffff);
+  border: 1px solid var(--border-color, #d3d6da);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.info-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-tone-1, #000000);
+  margin-bottom: 8px;
+}
+
+.info-card-description {
+  font-size: 14px;
+  color: var(--color-tone-2, #787c7e);
+  line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-container {
+    padding: 12px;
+  }
+
+  .home-title {
+    font-size: 28px;
+  }
+
+  .info-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
