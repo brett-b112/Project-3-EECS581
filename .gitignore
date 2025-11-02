@@ -1,0 +1,36 @@
+# Node dependencies
+/Leetle/frontend/node_modules/
+/Leetle/backend/node_modules/
+
+# Build output
+/Leetle/frontend/dist/
+/Leetle/backend/dist/
+
+# Local environment files
+/Leetle/frontend/.env
+/Leetle/backend/.env
+
+# Logs
+/Leetle/npm-debug.log*
+/Leetle/yarn-debug.log*
+/Leetle/yarn-error.log*
+
+# IDE/editor files
+/Leetle/.vscode/
+/Leetle/.idea/
+/Leetle/*.suo
+/Leetle/*.ntvs*
+/Leetle/*.njsproj
+/Leetle/*.sln
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Virtual environment
+/Leetle/.venv/
+
+# Python bytecode
+/Leetle/__pycache__/
+Leetle/*.py[cod]
+
