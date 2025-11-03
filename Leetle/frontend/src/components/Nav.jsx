@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 export default function Nav(){
   const [open, setOpen] = useState(false)
   return (
-    <header className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow">
+    <header className="bg-[#6aaa64] text-white shadow">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
