@@ -16,6 +16,7 @@ export default function Nav(){
         <nav className="hidden md:flex items-center gap-4">
           <Link to="/" className="text-sm text-white/90 hover:text-white">Home</Link>
           <Link to="/problem" className="text-sm text-white/90 hover:text-white">Problem</Link>
+          <Link to="/user-profile" className="text-sm text-white/90 hover:text-white">User Profile</Link>
         </nav>
 
         <div className="md:hidden">
@@ -30,6 +31,7 @@ export default function Nav(){
           <div className="max-w-4xl mx-auto p-3 flex flex-col gap-2">
             <Link to="/" className="text-white">Home</Link>
             <Link to="/problem" className="text-white">Problem</Link>
+            <Link to="/user-profile" className="text-white">User Profile</Link>
           </div>
         </div>
       )}

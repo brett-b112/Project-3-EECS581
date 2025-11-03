@@ -32,34 +32,61 @@ export default function Problem() {
     fetchProblem()
   }, [])
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setSubmitting(true)
     setResult(null)
     
     const simulatedMs = Math.floor(Math.random() * 2000) + 100
-    setTimeout(() => {
-      const passed = Math.random() > 0.35
-      const entry = {
-        id: Date.now(),
-        user: 'DemoUser',
-        language,
-        runtime_ms: simulatedMs,
-        passed,
-        submitted_at: new Date().toISOString()
-      }
+    // setTimeout(() => {
+    //   const passed = Math.random() > 0.35
+    //   const entry = {
+    //     id: Date.now(),
+    //     user: 'DemoUser',
+    //     language,
+    //     runtime_ms: simulatedMs,
+    //     passed,
+    //     submitted_at: new Date().toISOString()
+    //   }
       
-      const all = JSON.parse(localStorage.getItem('leetle_submissions') || '[]')
-      all.push(entry)
-      localStorage.setItem('leetle_submissions', JSON.stringify(all))
+    //   const all = JSON.parse(localStorage.getItem('leetle_submissions') || '[]')
+    //   all.push(entry)
+    //   localStorage.setItem('leetle_submissions', JSON.stringify(all))
       
-      setResult(entry)
+    //   setResult(entry)
+    //   setSubmitting(false)
+    //   addToast(
+    //     entry.passed ? 'Solution passed 🎉' : 'Solution failed — try again',
+    //     entry.passed ? 'success' : 'error'
+    //   )
+    //   if (entry.passed) launchConfetti()
+    // }, 800 + Math.random() * 1200)
+    const formData = new FormData();
+    formData.append('code', code);
+    formData.append('language', language);
+    formData.append('name', "test name");
+    const response = await fetch('http://localhost:5001/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: formData
+    })
+
+    if(!response.ok){
+      addToast('Error submitting code', 'error')
+      setSubmitting(false)
+      return
+    }
+    if(response.ok){
+      const data = await response.json()
+      setResult(data)
       setSubmitting(false)
       addToast(
-        entry.passed ? 'Solution passed 🎉' : 'Solution failed — try again',
-        entry.passed ? 'success' : 'error'
+        data.passed ? 'Solution passed 🎉' : 'Solution failed — try again'
+        , data.passed ? 'success' : 'error'
       )
-      if (entry.passed) launchConfetti()
-    }, 800 + Math.random() * 1200)
+      if (data.passed) launchConfetti()
+    }
   }
 
   function addToast(message, type = 'info') {
