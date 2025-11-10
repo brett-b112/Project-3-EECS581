@@ -7,6 +7,9 @@ import os
 import tempfile
 import subprocess
 import time
+import jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 CORS(app)
@@ -14,6 +17,8 @@ app.config['SECRET_KEY'] = 'leetlenew-secret-key-change-in-production'
 app.config['JSON_SORT_KEYS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///leetle.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_ACCESS_TOKEN_EXPIRE_MINUTES'] = 15
+app.config['JWT_REFRESH_TOKEN_EXPIRE_DAYS'] = 7
 db = SQLAlchemy(app)
 
 # Database Models
@@ -33,6 +38,12 @@ class Submission(db.Model):
     language = db.Column(db.String(10), nullable=False)  # 'python', 'javascript', 'java'
     exec_time = db.Column(db.Float, nullable=False)  # in seconds
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Helper functions
 def get_today_problem():
@@ -149,6 +160,158 @@ def validate_submission(problem, language, code):
 
     return True, total_time
 
+# JWT Helper Functions
+def generate_access_token(user_id):
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.utcnow() + timedelta(minutes=app.config['JWT_ACCESS_TOKEN_EXPIRE_MINUTES']),
+        'iat': datetime.utcnow(),
+        'type': 'access'
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def generate_refresh_token(user_id):
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.utcnow() + timedelta(days=app.config['JWT_REFRESH_TOKEN_EXPIRE_DAYS']),
+        'iat': datetime.utcnow(),
+        'type': 'refresh'
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def verify_token(token):
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+def token_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid authorization header'}), 401
+
+        token = auth_header.split(' ')[1]
+        payload = verify_token(token)
+
+        if not payload or payload.get('type') != 'access':
+            return jsonify({'error': 'Invalid or expired token'}), 401
+
+        # Add user_id to request context
+        request.user_id = payload['user_id']
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Authentication Routes
+@app.route('/auth/signup', methods=['POST'])
+def signup():
+    data = request.get_json()
+
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({'error': 'Email and password are required'}), 400
+
+    email = data['email'].lower().strip()
+    password = data['password']
+
+    # Validate email format (basic)
+    if '@' not in email or '.' not in email:
+        return jsonify({'error': 'Invalid email format'}), 400
+
+    # Check password strength
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+    # Check if user already exists
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({'error': 'User with this email already exists'}), 409
+
+    # Create new user
+    password_hash = generate_password_hash(password)
+    new_user = User(email=email, password_hash=password_hash)
+
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Generate tokens
+        access_token = generate_access_token(new_user.id)
+        refresh_token = generate_refresh_token(new_user.id)
+
+        return jsonify({
+            'message': 'User created successfully',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': new_user.id,
+                'email': new_user.email
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create user'}), 500
+
+@app.route('/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({'error': 'Email and password are required'}), 400
+
+    email = data['email'].lower().strip()
+    password = data['password']
+
+    # Find user
+    user = User.query.filter_by(email=email).first()
+    if not user or not check_password_hash(user.password_hash, password):
+        return jsonify({'error': 'Invalid email or password'}), 401
+
+    # Generate tokens
+    access_token = generate_access_token(user.id)
+    refresh_token = generate_refresh_token(user.id)
+
+    return jsonify({
+        'message': 'Login successful',
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user': {
+            'id': user.id,
+            'email': user.email
+        }
+    }), 200
+
+@app.route('/auth/refresh', methods=['POST'])
+def refresh_token():
+    data = request.get_json()
+
+    if not data or not data.get('refresh_token'):
+        return jsonify({'error': 'Refresh token is required'}), 400
+
+    refresh_token = data['refresh_token']
+    payload = verify_token(refresh_token)
+
+    if not payload or payload.get('type') != 'refresh':
+        return jsonify({'error': 'Invalid refresh token'}), 401
+
+    user_id = payload['user_id']
+
+    # Verify user still exists
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 401
+
+    # Generate new access token
+    new_access_token = generate_access_token(user_id)
+
+    return jsonify({
+        'access_token': new_access_token
+    }), 200
+
 # Routes
 @app.route('/')
 def home():
@@ -174,31 +337,42 @@ def problem():
 
 
 @app.route('/submit', methods=['POST'])
+@token_required
 def submit():
-    name = request.form.get('name')
-    language = request.form.get('language')
-    code = request.form.get('code')
+    data = request.get_json()
 
-    if not all([name, language, code]):
-        flash('All fields are required')
-        return redirect(url_for('problem'))
+    if not data or not data.get('language') or not data.get('code'):
+        return jsonify({'error': 'Language and code are required'}), 400
+
+    language = data['language']
+    code = data['code']
+
+    # Get user info from token
+    user_id = request.user_id
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 401
 
     problem = get_today_problem()
+    if not problem:
+        return jsonify({'error': 'No problem available today'}), 404
 
     is_correct, exec_time = validate_submission(problem, language, code)
 
     if not is_correct:
-        flash('Incorrect solution')
-        return redirect(url_for('problem'))
+        return jsonify({'error': 'Incorrect solution'}), 400
 
     # Save submission
-    submission = Submission(name=name, problem_id=problem.id,
+    submission = Submission(name=user.email, problem_id=problem.id,
                           language=language, exec_time=exec_time)
     db.session.add(submission)
     db.session.commit()
 
-    flash('Submission successful!')
-    return redirect(url_for('Problem'))
+    return jsonify({
+        'message': 'Submission successful!',
+        'execution_time': exec_time,
+        'problem_id': problem.id
+    }), 200
 
 if __name__ == '__main__':
     with app.app_context():

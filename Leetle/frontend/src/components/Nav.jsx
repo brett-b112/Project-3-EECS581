@@ -1,8 +1,16 @@
 import React, {useState} from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from './AuthContext'
 
 export default function Nav(){
   const [open, setOpen] = useState(false)
+  const { user, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    setOpen(false)
+  }
+
   return (
     <header className="bg-[#6aaa64] text-white shadow">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
@@ -15,8 +23,23 @@ export default function Nav(){
 
         <nav className="hidden md:flex items-center gap-4">
           <Link to="/" className="text-sm text-white/90 hover:text-white">Home</Link>
-          <Link to="/problem" className="text-sm text-white/90 hover:text-white">Problem</Link>
-          <Link to="/user-profile" className="text-sm text-white/90 hover:text-white">User Profile</Link>
+          {user ? (
+            <>
+              <Link to="/problem" className="text-sm text-white/90 hover:text-white">Problem</Link>
+              <Link to="/user-profile" className="text-sm text-white/90 hover:text-white">Profile</Link>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-white/90 hover:text-white bg-white/10 px-3 py-1 rounded"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="text-sm text-white/90 hover:text-white">Login</Link>
+              <Link to="/signup" className="text-sm text-white bg-[#5a944f] hover:bg-[#4a7a3f] px-3 py-1 rounded">Sign Up</Link>
+            </>
+          )}
         </nav>
 
         <div className="md:hidden">
@@ -29,9 +52,24 @@ export default function Nav(){
       {open && (
         <div className="md:hidden bg-white/5">
           <div className="max-w-4xl mx-auto p-3 flex flex-col gap-2">
-            <Link to="/" className="text-white">Home</Link>
-            <Link to="/problem" className="text-white">Problem</Link>
-            <Link to="/user-profile" className="text-white">User Profile</Link>
+            <Link to="/" className="text-white" onClick={() => setOpen(false)}>Home</Link>
+            {user ? (
+              <>
+                <Link to="/problem" className="text-white" onClick={() => setOpen(false)}>Problem</Link>
+                <Link to="/user-profile" className="text-white" onClick={() => setOpen(false)}>Profile</Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-left text-white bg-white/10 px-3 py-2 rounded w-full"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-white" onClick={() => setOpen(false)}>Login</Link>
+                <Link to="/signup" className="text-white bg-[#5a944f] px-3 py-2 rounded block text-center" onClick={() => setOpen(false)}>Sign Up</Link>
+              </>
+            )}
           </div>
         </div>
       )}

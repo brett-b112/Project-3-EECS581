@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { useAuth } from '../components/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import CodeEditor from '../components/CodeEditor'
 import Toast from '../components/Toast'
 import '../styles/Problem.css'
 
 export default function Problem() {
+  const { user, makeAuthenticatedRequest } = useAuth()
+  const navigate = useNavigate()
   const [problem, setProblem] = useState(null)
   const [code, setCode] = useState('# write your solution here')
   const [language, setLanguage] = useState('python')
@@ -12,6 +16,13 @@ export default function Problem() {
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const confettiRef = useRef(null)
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user && !loading) {
+      navigate('/login')
+    }
+  }, [user, loading, navigate])
 
   useEffect(() => {
     const fetchProblem = async () => {
@@ -35,57 +46,43 @@ export default function Problem() {
   async function handleSubmit() {
     setSubmitting(true)
     setResult(null)
-    
-    const simulatedMs = Math.floor(Math.random() * 2000) + 100
-    // setTimeout(() => {
-    //   const passed = Math.random() > 0.35
-    //   const entry = {
-    //     id: Date.now(),
-    //     user: 'DemoUser',
-    //     language,
-    //     runtime_ms: simulatedMs,
-    //     passed,
-    //     submitted_at: new Date().toISOString()
-    //   }
-      
-    //   const all = JSON.parse(localStorage.getItem('leetle_submissions') || '[]')
-    //   all.push(entry)
-    //   localStorage.setItem('leetle_submissions', JSON.stringify(all))
-      
-    //   setResult(entry)
-    //   setSubmitting(false)
-    //   addToast(
-    //     entry.passed ? 'Solution passed 🎉' : 'Solution failed — try again',
-    //     entry.passed ? 'success' : 'error'
-    //   )
-    //   if (entry.passed) launchConfetti()
-    // }, 800 + Math.random() * 1200)
-    const formData = new FormData();
-    formData.append('code', code);
-    formData.append('language', language);
-    formData.append('name', "test name");
-    const response = await fetch('http://localhost:5001/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: formData
-    })
 
-    if(!response.ok){
-      addToast('Error submitting code', 'error')
-      setSubmitting(false)
-      return
-    }
-    if(response.ok){
+    try {
+      const response = await makeAuthenticatedRequest('http://localhost:5001/submit', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: code,
+          language: language
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        addToast(errorData.error || 'Error submitting code', 'error')
+        setSubmitting(false)
+        return
+      }
+
       const data = await response.json()
-      setResult(data)
+      const resultData = {
+        passed: data.message === 'Submission successful!',
+        runtime_ms: data.execution_time * 1000, // Convert to milliseconds
+        language: language,
+        execution_time: data.execution_time
+      }
+
+      setResult(resultData)
       setSubmitting(false)
       addToast(
-        data.passed ? 'Solution passed 🎉' : 'Solution failed — try again'
-        , data.passed ? 'success' : 'error'
+        resultData.passed ? 'Solution passed 🎉' : 'Solution failed — try again',
+        resultData.passed ? 'success' : 'error'
       )
-      if (data.passed) launchConfetti()
+      if (resultData.passed) launchConfetti()
+
+    } catch (error) {
+      console.error('Submission error:', error)
+      addToast('Network error. Please try again.', 'error')
+      setSubmitting(false)
     }
   }
 
