@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: leetle-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+    healthCheckPath: /
+    plan: free
+
+  - type: web
+    name: leetle-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: ./dist
+    plan: free

@@ -3,6 +3,7 @@ import { useAuth } from '../components/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import CodeEditor from '../components/CodeEditor'
 import Toast from '../components/Toast'
+import HintViewer from '../components/HintViewer'
 import '../styles/Problem.css'
 
 export default function Problem() {
@@ -147,6 +148,9 @@ export default function Problem() {
             <h3 className="problem-example-title">Example Output:</h3>
             <pre className="problem-example-code">{problem.output_example}</pre>
           </div>
+
+          {/* Hint Viewer */}
+          <HintViewer problemId={1} /> {/* TODO: Get actual problem ID */}
         </div>
 
         {/* Code Editor */}

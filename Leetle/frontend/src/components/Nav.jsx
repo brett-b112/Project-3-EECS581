@@ -26,7 +26,13 @@ export default function Nav(){
           {user ? (
             <>
               <Link to="/problem" className="text-sm text-white/90 hover:text-white">Problem</Link>
+              <Link to="/leaderboard" className="text-sm text-white/90 hover:text-white">Leaderboard</Link>
               <Link to="/user-profile" className="text-sm text-white/90 hover:text-white">Profile</Link>
+              {user.role === 'admin' && (
+                <Link to="/admin" className="text-sm text-white/90 hover:text-white bg-white/10 px-3 py-1 rounded">
+                  Admin
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="text-sm text-white/90 hover:text-white bg-white/10 px-3 py-1 rounded"

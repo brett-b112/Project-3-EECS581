@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_compress import Compress
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 import json
 import os
 import tempfile
@@ -11,14 +13,18 @@ import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
 CORS(app)
-app.config['SECRET_KEY'] = 'leetlenew-secret-key-change-in-production'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'leetlenew-secret-key-change-in-production')
 app.config['JSON_SORT_KEYS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///leetle.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRE_MINUTES'] = 15
 app.config['JWT_REFRESH_TOKEN_EXPIRE_DAYS'] = 7
+Compress(app)
 db = SQLAlchemy(app)
 
 # Database Models
@@ -30,20 +36,81 @@ class Problem(db.Model):
     input_example = db.Column(db.Text, nullable=False)
     output_example = db.Column(db.Text, nullable=False)
     test_cases = db.Column(db.Text, nullable=False)  # JSON string
+    hint_text = db.Column(db.Text, nullable=True)  # Partial hint
+    full_solution = db.Column(db.Text, nullable=True)  # Full solution
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
 
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), nullable=False)
     language = db.Column(db.String(10), nullable=False)  # 'python', 'javascript', 'java'
+    code = db.Column(db.Text, nullable=False)  # Store the actual code
     exec_time = db.Column(db.Float, nullable=False)  # in seconds
+    is_correct = db.Column(db.Boolean, default=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='submissions')
+    problem = db.relationship('Problem', backref='submissions')
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), default='user')  # 'user', 'admin'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    current_streak = db.Column(db.Integer, default=0)
+    longest_streak = db.Column(db.Integer, default=0)
+    total_solutions = db.Column(db.Integer, default=0)
+    last_submission_date = db.Column(db.Date, nullable=True)
+
+class Achievement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    criteria = db.Column(db.Text, nullable=False)  # JSON string describing criteria
+    icon = db.Column(db.String(50), nullable=False)  # Icon identifier
+    points = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+
+class UserAchievement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    achievement_id = db.Column(db.Integer, db.ForeignKey('achievement.id'), nullable=False)
+    earned_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='achievements')
+    achievement = db.relationship('Achievement', backref='users')
+
+class UserStats(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    total_attempts = db.Column(db.Integer, default=0)
+    total_correct = db.Column(db.Integer, default=0)
+    success_rate = db.Column(db.Float, default=0.0)
+    favorite_language = db.Column(db.String(10), default='python')
+    problems_attempted = db.Column(db.Integer, default=0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='stats')
+
+class UserHintUsage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), nullable=False)
+    hint_level = db.Column(db.String(10), nullable=False)  # 'partial', 'full'
+    used_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='hint_usage')
+    problem = db.relationship('Problem', backref='hint_usage')
+
+class FeedbackSubmission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Optional for anonymous
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 scale
+    feedback_text = db.Column(db.Text, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Helper functions
 def get_today_problem():
@@ -143,6 +210,92 @@ def run_code_in_docker(language, code, input_data):
 
     return output, execution_time
 
+def calculate_user_streak(user):
+    """Calculate current streak based on submission dates"""
+    from collections import defaultdict
+
+    # Get all successful submissions ordered by date
+    submissions = Submission.query.filter_by(user_id=user.id, is_correct=True)\
+                                 .order_by(Submission.submitted_at).all()
+
+    if not submissions:
+        return 0
+
+    # Group submissions by date
+    daily_success = defaultdict(bool)
+    for sub in submissions:
+        date = sub.submitted_at.date()
+        daily_success[date] = True
+
+    # Count consecutive days from today backwards
+    streak = 0
+    current_date = datetime.now().date()
+
+    while daily_success.get(current_date, False):
+        streak += 1
+        current_date -= timedelta(days=1)
+
+    return streak
+
+def update_user_stats(user, language, is_correct):
+    """Update user statistics and streaks after a submission"""
+    # Get or create user stats
+    stats = UserStats.query.filter_by(user_id=user.id).first()
+    if not stats:
+        stats = UserStats(user_id=user.id)
+        db.session.add(stats)
+
+    # Update attempts and success rate
+    stats.total_attempts += 1
+    if is_correct:
+        stats.total_correct += 1
+    stats.success_rate = (stats.total_correct / stats.total_attempts) * 100 if stats.total_attempts > 0 else 0
+
+    # Update favorite language based on usage frequency
+    language_counts = {}
+    user_subs = Submission.query.filter_by(user_id=user.id).all()
+    for sub in user_subs:
+        language_counts[sub.language] = language_counts.get(sub.language, 0) + 1
+    stats.favorite_language = max(language_counts, key=language_counts.get) if language_counts else language
+
+    stats.updated_at = datetime.utcnow()
+    stats.problems_attempted = len(set(sub.problem_id for sub in user_subs))
+
+    # Update streak information
+    if is_correct:
+        today = datetime.now().date()
+        user.last_submission_date = today
+        user.current_streak = calculate_user_streak(user)
+        user.longest_streak = max(user.longest_streak, user.current_streak)
+        user.total_solutions += 1
+
+    db.session.commit()
+
+def check_and_award_achievements(user):
+    """Check if user has earned any new achievements"""
+    achievements = Achievement.query.all()
+    user_achievement_ids = [ua.achievement_id for ua in UserAchievement.query.filter_by(user_id=user.id).all()]
+
+    for achievement in achievements:
+        if achievement.id in user_achievement_ids:
+            continue
+
+        criteria = json.loads(achievement.criteria)
+
+        earned = True
+        if 'min_streak' in criteria and user.current_streak < criteria['min_streak']:
+            earned = False
+        if 'total_solutions' in criteria and user.total_solutions < criteria['total_solutions']:
+            earned = False
+        if 'success_rate' in criteria and UserStats.query.filter_by(user_id=user.id).first().success_rate < criteria['success_rate']:
+            earned = False
+
+        if earned:
+            user_achievement = UserAchievement(user_id=user.id, achievement_id=achievement.id)
+            db.session.add(user_achievement)
+
+    db.session.commit()
+
 def validate_submission(problem, language, code):
     # Run code against each test case
     test_cases = json.loads(problem.test_cases)
@@ -203,6 +356,16 @@ def token_required(f):
 
         # Add user_id to request context
         request.user_id = payload['user_id']
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    @token_required
+    def decorated_function(*args, **kwargs):
+        user = User.query.get(request.user_id)
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -359,20 +522,495 @@ def submit():
 
     is_correct, exec_time = validate_submission(problem, language, code)
 
+    # Save submission - always save, even if incorrect, to track attempts
+    submission = Submission(user_id=user_id, problem_id=problem.id,
+                           language=language, code=code, exec_time=exec_time,
+                           is_correct=is_correct)
+    db.session.add(submission)
+    db.session.commit()
+
     if not is_correct:
         return jsonify({'error': 'Incorrect solution'}), 400
 
-    # Save submission
-    submission = Submission(name=user.email, problem_id=problem.id,
-                          language=language, exec_time=exec_time)
-    db.session.add(submission)
-    db.session.commit()
+    # Update user stats and streaks
+    update_user_stats(user, language, is_correct)
+    check_and_award_achievements(user)
 
     return jsonify({
         'message': 'Submission successful!',
         'execution_time': exec_time,
         'problem_id': problem.id
     }), 200
+
+# New API Routes for Sprint 3
+
+@app.route('/api/leaderboard')
+@token_required
+def get_leaderboard():
+    """Get leaderboard data with rankings by streaks and accuracy"""
+    period = request.args.get('period', 'all-time')  # daily, weekly, all-time
+    limit = request.args.get('limit', 50, type=int)
+
+    # Base query for users with stats
+    query = db.session.query(User, UserStats).join(UserStats)
+
+    # Apply time filters
+    if period == 'daily':
+        # Users with submissions today
+        today = datetime.now().date()
+        user_ids = db.session.query(Submission.user_id).filter(
+            Submission.submitted_at >= today
+        ).distinct().all()
+        user_ids = [uid[0] for uid in user_ids]
+        query = query.filter(User.id.in_(user_ids))
+    elif period == 'weekly':
+        # Users with submissions in last 7 days
+        week_ago = datetime.now() - timedelta(days=7)
+        user_ids = db.session.query(Submission.user_id).filter(
+            Submission.submitted_at >= week_ago
+        ).distinct().all()
+        user_ids = [uid[0] for uid in user_ids]
+        query = query.filter(User.id.in_(user_ids))
+
+    # Calculate ranking score: streak + (success_rate / 10)
+    leaderboard = []
+    for user, stats in query.all():
+        score = user.current_streak + (stats.success_rate / 10.0)
+        leaderboard.append({
+            'id': user.id,
+            'email': user.email,
+            'current_streak': user.current_streak,
+            'longest_streak': user.longest_streak,
+            'total_solutions': user.total_solutions,
+            'success_rate': round(stats.success_rate, 1),
+            'score': round(score, 2)
+        })
+
+    # Sort by score descending
+    leaderboard.sort(key=lambda x: x['score'], reverse=True)
+    leaderboard = leaderboard[:limit]
+
+    # Add ranking positions
+    for i, entry in enumerate(leaderboard, 1):
+        entry['rank'] = i
+
+    # Highlight current user position
+    current_user_id = request.user_id
+    current_user_rank = None
+    for entry in leaderboard:
+        if entry['id'] == current_user_id:
+            current_user_rank = entry['rank']
+            break
+
+    return jsonify({
+        'leaderboard': leaderboard,
+        'current_user_rank': current_user_rank,
+        'period': period
+    }), 200
+
+@app.route('/api/user/stats/<int:user_id>')
+@token_required
+def get_user_stats(user_id):
+    """Get detailed statistics for a user"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    stats = UserStats.query.filter_by(user_id=user_id).first()
+    if not stats:
+        return jsonify({'error': 'Stats not found'}), 404
+
+    # Get user achievements
+    achievements = []
+    user_achievements = UserAchievement.query.filter_by(user_id=user_id).join(Achievement).all()
+    for ua in user_achievements:
+        achievements.append({
+            'id': ua.achievement.id,
+            'name': ua.achievement.name,
+            'description': ua.achievement.description,
+            'icon': ua.achievement.icon,
+            'earned_at': ua.earned_at.isoformat()
+        })
+
+    # Language usage statistics
+    language_stats = {}
+    submissions = Submission.query.filter_by(user_id=user_id).all()
+    for sub in submissions:
+        lang = sub.language
+        if lang not in language_stats:
+            language_stats[lang] = {'attempts': 0, 'correct': 0}
+        language_stats[lang]['attempts'] += 1
+        if sub.is_correct:
+            language_stats[lang]['correct'] += 1
+
+    return jsonify({
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'created_at': user.created_at.isoformat()
+        },
+        'stats': {
+            'current_streak': user.current_streak,
+            'longest_streak': user.longest_streak,
+            'total_solutions': user.total_solutions,
+            'total_attempts': stats.total_attempts,
+            'success_rate': round(stats.success_rate, 1),
+            'favorite_language': stats.favorite_language,
+            'problems_attempted': stats.problems_attempted
+        },
+        'achievements': achievements,
+        'language_stats': language_stats
+    }), 200
+
+@app.route('/api/admin/problems', methods=['GET'])
+@admin_required
+def get_admin_problems():
+    """Get all problems for admin management"""
+    problems = Problem.query.all()
+    problems_data = []
+
+    for problem in problems:
+        # Get submission stats
+        total_subs = Submission.query.filter_by(problem_id=problem.id).count()
+        correct_subs = Submission.query.filter_by(problem_id=problem.id, is_correct=True).count()
+        success_rate = (correct_subs / total_subs * 100) if total_subs > 0 else 0
+
+        problems_data.append({
+            'id': problem.id,
+            'title': problem.title,
+            'difficulty': problem.difficulty,
+            'is_active': problem.is_active,
+            'created_at': problem.created_at.isoformat(),
+            'total_attempts': total_subs,
+            'success_rate': round(success_rate, 1)
+        })
+
+    return jsonify({'problems': problems_data}), 200
+
+@app.route('/api/admin/problems', methods=['POST'])
+@admin_required
+def create_problem():
+    """Create a new problem"""
+    data = request.get_json()
+
+    if not data or not data.get('title') or not data.get('description') or not data.get('difficulty'):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    # Validate difficulty
+    if data['difficulty'] not in ['Easy', 'Medium', 'Hard']:
+        return jsonify({'error': 'Invalid difficulty level'}), 400
+
+    # Validate test cases
+    if not data.get('test_cases') or not isinstance(data['test_cases'], list):
+        return jsonify({'error': 'Test cases must be provided as array'}), 400
+
+    for test_case in data['test_cases']:
+        if 'input' not in test_case or 'output' not in test_case:
+            return jsonify({'error': 'Each test case must have input and output'}), 400
+
+    problem = Problem(
+        title=data['title'],
+        description=data['description'],
+        difficulty=data['difficulty'],
+        input_example=data.get('input_example', ''),
+        output_example=data.get('output_example', ''),
+        test_cases=json.dumps(data['test_cases'])
+    )
+
+    try:
+        db.session.add(problem)
+        db.session.commit()
+        return jsonify({
+            'message': 'Problem created successfully',
+            'problem_id': problem.id
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create problem'}), 500
+
+@app.route('/api/admin/problems/<int:problem_id>', methods=['PUT'])
+@admin_required
+def update_problem(problem_id):
+    """Update an existing problem"""
+    problem = Problem.query.get(problem_id)
+    if not problem:
+        return jsonify({'error': 'Problem not found'}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    # Update allowed fields
+    allowed_fields = ['title', 'description', 'difficulty', 'input_example', 'output_example', 'is_active']
+    for field in allowed_fields:
+        if field in data:
+            if field == 'difficulty' and data[field] not in ['Easy', 'Medium', 'Hard']:
+                return jsonify({'error': 'Invalid difficulty level'}), 400
+            setattr(problem, field, data[field])
+
+    # Update test cases if provided
+    if 'test_cases' in data and isinstance(data['test_cases'], list):
+        setattr(problem, 'test_cases', json.dumps(data['test_cases']))
+
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Problem updated successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update problem'}), 500
+
+@app.route('/api/admin/problems/<int:problem_id>', methods=['DELETE'])
+@admin_required
+def delete_problem(problem_id):
+    """Delete a problem"""
+    problem = Problem.query.get(problem_id)
+    if not problem:
+        return jsonify({'error': 'Problem not found'}), 404
+
+    try:
+        db.session.delete(problem)
+        db.session.commit()
+        return jsonify({'message': 'Problem deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete problem'}), 500
+
+@app.route('/api/admin/users')
+@admin_required
+def get_admin_users():
+    """Get users for admin management"""
+    users = User.query.all()
+    users_data = []
+
+    for user in users:
+        stats = UserStats.query.filter_by(user_id=user.id).first()
+        users_data.append({
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'current_streak': user.current_streak,
+            'total_solutions': user.total_solutions,
+            'success_rate': round(stats.success_rate, 1) if stats else 0,
+            'created_at': user.created_at.isoformat()
+        })
+
+    return jsonify({'users': users_data}), 200
+
+@app.route('/api/admin/analytics')
+@admin_required
+def get_admin_analytics():
+    """Get platform analytics"""
+    # Overall stats
+    total_users = User.query.count()
+    total_problems = Problem.query.count()
+    total_submissions = Submission.query.count()
+    total_correct = Submission.query.filter_by(is_correct=True).count()
+    overall_success_rate = (total_correct / total_submissions * 100) if total_submissions > 0 else 0
+
+    # Daily active users (last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    daily_active = db.session.query(Submission.user_id).filter(
+        Submission.submitted_at >= thirty_days_ago
+    ).distinct().count()
+
+    # Problem difficulty breakdown
+    difficulty_stats = {}
+    for difficulty in ['Easy', 'Medium', 'Hard']:
+        problems = Problem.query.filter_by(difficulty=difficulty)
+        correct = Submission.query.filter(
+            Submission.problem_id.in_([p.id for p in problems]),
+            Submission.is_correct == True
+        ).count()
+        total = Submission.query.filter(
+            Submission.problem_id.in_([p.id for p in problems])
+        ).count()
+        difficulty_stats[difficulty] = {
+            'count': problems.count(),
+            'attempts': total,
+            'success_rate': round((correct / total * 100) if total > 0 else 0, 1)
+        }
+
+    return jsonify({
+        'overview': {
+            'total_users': total_users,
+            'total_problems': total_problems,
+            'total_submissions': total_submissions,
+            'overall_success_rate': round(overall_success_rate, 1),
+            'daily_active_users': daily_active
+        },
+        'difficulty_breakdown': difficulty_stats
+    }), 200
+
+@app.route('/api/achievements')
+@token_required
+def get_achievements():
+    """Get all available achievements and user progress"""
+    achievements = Achievement.query.filter_by(is_active=True).all()
+    user_achievements = UserAchievement.query.filter_by(user_id=request.user_id).all()
+    earned_ids = [ua.achievement_id for ua in user_achievements]
+
+    achievements_data = []
+    for achievement in achievements:
+        achievements_data.append({
+            'id': achievement.id,
+            'name': achievement.name,
+            'description': achievement.description,
+            'icon': achievement.icon,
+            'points': achievement.points,
+            'earned': achievement.id in earned_ids
+        })
+
+    return jsonify({'achievements': achievements_data}), 200
+
+@app.route('/api/hints/<int:problem_id>')
+@token_required
+def get_hints(problem_id):
+    """Get hints for a problem with daily usage limits"""
+    user_id = request.user_id
+    problem = Problem.query.get(problem_id)
+    if not problem:
+        return jsonify({'error': 'Problem not found'}), 404
+
+    # Check daily hint usage (max 3 per day total)
+    today = datetime.now().date()
+    today_start = datetime.combine(today, datetime.min.time())
+    today_hint_usage = UserHintUsage.query.filter(
+        UserHintUsage.user_id == user_id,
+        UserHintUsage.used_at >= today_start
+    ).count()
+
+    if today_hint_usage >= 3:
+        return jsonify({'error': 'Daily hint limit reached (3 hints per day)'}), 429
+
+    # Get existing hint usage for this problem today
+    problem_hint_usage = UserHintUsage.query.filter(
+        UserHintUsage.user_id == user_id,
+        UserHintUsage.problem_id == problem_id,
+        UserHintUsage.used_at >= today_start
+    ).first()
+
+    hints = {}
+    if problem.hint_text:
+        hints['partial'] = problem.hint_text
+    if problem.full_solution:
+        hints['full'] = problem.full_solution
+
+    response = {
+        'hints_available': bool(hints),
+        'daily_usage': today_hint_usage,
+        'max_daily_usage': 3,
+        'problem_hinted_today': problem_hint_usage is not None
+    }
+
+    if hints:
+        if problem_hint_usage and problem_hint_usage.hint_level == 'partial':
+            response['hints'] = hints  # Already used partial, show all
+        elif not problem_hint_usage:
+            response['hints'] = {'partial': hints.get('partial', 'No hint available')}
+        else:
+            response['hints'] = hints
+
+    return jsonify(response), 200
+
+@app.route('/api/hints/<int:problem_id>/<hint_level>', methods=['POST'])
+@token_required
+def reveal_hint(problem_id, hint_level):
+    """Reveal a specific hint level for a problem"""
+    if hint_level not in ['partial', 'full']:
+        return jsonify({'error': 'Invalid hint level'}), 400
+
+    user_id = request.user_id
+    problem = Problem.query.get(problem_id)
+    if not problem:
+        return jsonify({'error': 'Problem not found'}), 404
+
+    # Check daily limit
+    today = datetime.now().date()
+    today_start = datetime.combine(today, datetime.min.time())
+    today_hint_usage = UserHintUsage.query.filter(
+        UserHintUsage.user_id == user_id,
+        UserHintUsage.used_at >= today_start
+    ).count()
+
+    if hint_level == 'full' and today_hint_usage >= 3:
+        return jsonify({'error': 'Cannot reveal full solution - daily hint limit reached'}), 429
+
+    # Check if partial hint was already used for this problem today
+    existing_usage = UserHintUsage.query.filter(
+        UserHintUsage.user_id == user_id,
+        UserHintUsage.problem_id == problem_id,
+        UserHintUsage.used_at >= today_start
+    ).first()
+
+    if hint_level == 'full':
+        if existing_usage and existing_usage.hint_level == 'partial':
+            # Already paid partial cost (1 usage), reveal full
+            existing_usage.hint_level = 'full'
+            db.session.commit()
+            return jsonify({
+                'hint': problem.full_solution or 'No full solution available',
+                'daily_usage': today_hint_usage,
+                'cost': 1  # Additional cost for full when partial was used
+            }), 200
+        elif not existing_usage:
+            # First time usage for full hint (costs 2)
+            if today_hint_usage >= 2:  # 2 remaining slots needed
+                return jsonify({'error': 'Not enough hint usage remaining for full solution'}), 429
+            usage = UserHintUsage(user_id=user_id, problem_id=problem_id, hint_level='full')
+            db.session.add(usage)
+            db.session.commit()
+            return jsonify({
+                'hint': problem.full_solution or 'No full solution available',
+                'daily_usage': today_hint_usage + 2,
+                'cost': 2
+            }), 200
+        else:
+            # Already revealed full
+            return jsonify({'error': 'Full solution already revealed'}), 400
+    else:  # partial
+        if not existing_usage:
+            usage = UserHintUsage(user_id=user_id, problem_id=problem_id, hint_level='partial')
+            db.session.add(usage)
+            db.session.commit()
+            return jsonify({
+                'hint': problem.hint_text or 'No hint available',
+                'daily_usage': today_hint_usage + 1,
+                'cost': 1
+            }), 200
+        else:
+            # Partial already revealed
+            return jsonify({'error': 'Hint already revealed'}), 400
+
+@app.route('/api/feedback/submit', methods=['POST'])
+def submit_feedback():
+    """Submit user feedback (anonymous OK)"""
+    data = request.get_json()
+
+    if not data or not data.get('rating') or not data.get('feedback_text'):
+        return jsonify({'error': 'Rating and feedback text are required'}), 400
+
+    rating = data['rating']
+    feedback_text = data['feedback_text']
+
+    if not isinstance(rating, int) or rating < 1 or rating > 5:
+        return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+
+    # Get user_id from token if authenticated, otherwise None
+    user_id = getattr(request, 'user_id', None)
+
+    feedback = FeedbackSubmission(
+        user_id=user_id,
+        rating=rating,
+        feedback_text=feedback_text
+    )
+
+    try:
+        db.session.add(feedback)
+        db.session.commit()
+        return jsonify({'message': 'Feedback submitted successfully'}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to submit feedback'}), 500
 
 if __name__ == '__main__':
     with app.app_context():
@@ -386,6 +1024,8 @@ if __name__ == '__main__':
                     'difficulty': 'Easy',
                     'input_example': 'nums = [2, 7, 11, 15], target = 9',
                     'output_example': '[0, 1]',
+                    'hint_text': 'Consider using a hash map to store numbers you\'ve seen and their indices.',
+                    'full_solution': 'Use a dictionary to store each number and its index. For each number, check if target - number exists in the dictionary.',
                     'test_cases': json.dumps([
                         {'input': '[2,7,11,15]\n9', 'output': '[0,1]'},
                         {'input': '[3,3]\n6', 'output': '[0,1]'}
@@ -397,6 +1037,8 @@ if __name__ == '__main__':
                     'difficulty': 'Easy',
                     'input_example': 'x = 121',
                     'output_example': 'true',
+                    'hint_text': 'Convert the number to a string and check if it reads the same forwards and backwards.',
+                    'full_solution': 'Convert x to string, then compare it with its reverse using string slicing.',
                     'test_cases': json.dumps([
                         {'input': '121', 'output': 'true'},
                         {'input': '-121', 'output': 'false'},
@@ -409,6 +1051,8 @@ if __name__ == '__main__':
                     'difficulty': 'Easy',
                     'input_example': 's = ["h","e","l","l","o"]',
                     'output_example': '["o","l","l","e","h"]',
+                    'hint_text': 'Use two pointers, one at the start and one at the end, swapping characters.',
+                    'full_solution': 'Initialize left = 0, right = len(s)-1. While left < right, swap s[left] and s[right], increment left, decrement right.',
                     'test_cases': json.dumps([
                         {'input': '["h","e","l","l","o"]', 'output': '["o","l","l","e","h"]'},
                         {'input': '["H","a","n","n","a","h"]', 'output': '["h","a","n","n","a","H"]'}
@@ -420,6 +1064,8 @@ if __name__ == '__main__':
                     'difficulty': 'Easy',
                     'input_example': 'n = 3',
                     'output_example': '["1","2","Fizz"]',
+                    'hint_text': 'Loop from 1 to n, check divisibility conditions for each number.',
+                    'full_solution': 'Initialize empty list. For i in range(1, n+1): if i%15==0 append "FizzBuzz", elif i%3==0 append "Fizz", elif i%5==0 append "Buzz", else append str(i).',
                     'test_cases': json.dumps([
                         {'input': '3', 'output': '["1","2","Fizz"]'},
                         {'input': '5', 'output': '["1","2","Fizz","4","Buzz"]'}
@@ -431,6 +1077,8 @@ if __name__ == '__main__':
                     'difficulty': 'Easy',
                     'input_example': 'nums = [-1,0,3,5,9,12], target = 9',
                     'output_example': '4',
+                    'hint_text': 'Use left and right pointers to narrow down the search space.',
+                    'full_solution': 'Set left=0, right=len(nums)-1. While left <= right, mid = (left+right)//2. If nums[mid] == target return mid, elif nums[mid] < target left=mid+1, else right=mid-1. Return -1.',
                     'test_cases': json.dumps([
                         {'input': '[-1,0,3,5,9,12]\n9', 'output': '4'},
                         {'input': '[-1,0,3,5,9,12]\n2', 'output': '-1'}
@@ -440,5 +1088,67 @@ if __name__ == '__main__':
             for prob in problems_data:
                 problem = Problem(**prob)
                 db.session.add(problem)
+            db.session.commit()
+
+        # Seed achievements if not exist
+        if Achievement.query.count() == 0:
+            achievements_data = [
+                {
+                    'name': 'First Win',
+                    'description': 'Solve your first problem',
+                    'criteria': json.dumps({'total_solutions': 1}),
+                    'icon': 'trophy',
+                    'points': 10
+                },
+                {
+                    'name': 'Problem Solver',
+                    'description': 'Solve 10 problems',
+                    'criteria': json.dumps({'total_solutions': 10}),
+                    'icon': 'star',
+                    'points': 25
+                },
+                {
+                    'name': 'Streak Beginner',
+                    'description': 'Maintain a 3-day streak',
+                    'criteria': json.dumps({'min_streak': 3}),
+                    'icon': 'fire',
+                    'points': 20
+                },
+                {
+                    'name': 'Streak Master',
+                    'description': 'Maintain a 7-day streak',
+                    'criteria': json.dumps({'min_streak': 7}),
+                    'icon': 'flame',
+                    'points': 50
+                },
+                {
+                    'name': 'Accuracy Expert',
+                    'description': 'Achieve 90% success rate with at least 10 attempts',
+                    'criteria': json.dumps({'success_rate': 90}),
+                    'icon': 'target',
+                    'points': 30
+                },
+                {
+                    'name': 'Century Club',
+                    'description': 'Solve 100 problems',
+                    'criteria': json.dumps({'total_solutions': 100}),
+                    'icon': 'medal',
+                    'points': 100
+                }
+            ]
+            for ach_data in achievements_data:
+                achievement = Achievement(**ach_data)
+                db.session.add(achievement)
+            db.session.commit()
+
+        # Create admin user if not exists (for testing)
+        if User.query.filter_by(role='admin').count() == 0:
+            admin_password = generate_password_hash('admin123')
+            admin_user = User(
+                email='admin@leetle.com',
+                password_hash=admin_password,
+                role='admin'
+            )
+            db.session.add(admin_user)
             db.session.commit()
     app.run(debug=True, host='0.0.0.0', port=5001)
