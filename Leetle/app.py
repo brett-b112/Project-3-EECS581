@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_compress import Compress
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import json
 import os
@@ -258,7 +258,7 @@ def update_user_stats(user, language, is_correct):
         language_counts[sub.language] = language_counts.get(sub.language, 0) + 1
     stats.favorite_language = max(language_counts, key=language_counts.get) if language_counts else language
 
-    stats.updated_at = datetime.utcnow()
+    stats.updated_at = datetime.now(timezone.utc)
     stats.problems_attempted = len(set(sub.problem_id for sub in user_subs))
 
     # Update streak information
@@ -317,8 +317,8 @@ def validate_submission(problem, language, code):
 def generate_access_token(user_id):
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(minutes=app.config['JWT_ACCESS_TOKEN_EXPIRE_MINUTES']),
-        'iat': datetime.utcnow(),
+        'exp': datetime.now(timezone.utc) + timedelta(minutes=app.config['JWT_ACCESS_TOKEN_EXPIRE_MINUTES']),
+        'iat': datetime.now(timezone.utc),
         'type': 'access'
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
@@ -326,8 +326,8 @@ def generate_access_token(user_id):
 def generate_refresh_token(user_id):
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(days=app.config['JWT_REFRESH_TOKEN_EXPIRE_DAYS']),
-        'iat': datetime.utcnow(),
+        'exp': datetime.now(timezone.utc) + timedelta(days=app.config['JWT_REFRESH_TOKEN_EXPIRE_DAYS']),
+        'iat': datetime.now(timezone.utc),
         'type': 'refresh'
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
@@ -617,8 +617,24 @@ def get_user_stats(user_id):
         return jsonify({'error': 'User not found'}), 404
 
     stats = UserStats.query.filter_by(user_id=user_id).first()
+
+    # If no stats record exists yet (new user), use default values
     if not stats:
-        return jsonify({'error': 'Stats not found'}), 404
+        default_stats = {
+            'total_attempts': 0,
+            'total_correct': 0,
+            'success_rate': 0.0,
+            'favorite_language': 'python',
+            'problems_attempted': 0
+        }
+    else:
+        default_stats = {
+            'total_attempts': stats.total_attempts,
+            'total_correct': stats.total_correct,
+            'success_rate': round(stats.success_rate, 1),
+            'favorite_language': stats.favorite_language,
+            'problems_attempted': stats.problems_attempted
+        }
 
     # Get user achievements
     achievements = []
@@ -653,10 +669,10 @@ def get_user_stats(user_id):
             'current_streak': user.current_streak,
             'longest_streak': user.longest_streak,
             'total_solutions': user.total_solutions,
-            'total_attempts': stats.total_attempts,
-            'success_rate': round(stats.success_rate, 1),
-            'favorite_language': stats.favorite_language,
-            'problems_attempted': stats.problems_attempted
+            'total_attempts': default_stats['total_attempts'],
+            'success_rate': default_stats['success_rate'],
+            'favorite_language': default_stats['favorite_language'],
+            'problems_attempted': default_stats['problems_attempted']
         },
         'achievements': achievements,
         'language_stats': language_stats
