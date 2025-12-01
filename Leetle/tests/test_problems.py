@@ -1,3 +1,6 @@
+# This file defines a test suite for validating reference solutions of algorithm problems across multiple programming languages by running them against defined test cases.
+# Author: Daniel Neugent
+
 import pytest
 import os
 import json
@@ -13,6 +16,10 @@ class TestProblems:
     SUPPORTED_LANGUAGES = ['python', 'javascript', 'java']
     PROBLEM_NAMES = ['two_sum', 'palindrome_number', 'reverse_string', 'fizzbuzz', 'binary_search']
 
+    # Constructs the file path for a specific problem's solution in a given language, handling language-specific naming conventions.
+    # Inputs: problem_name (str), language (str)
+    # Outputs: Path object representing the location of the solution file
+    # Contributor: Daniel Neugent
     def get_problem_file(self, problem_name: str, language: str) -> Path:
         """Get the path to a problem solution file."""
         lang_ext = {'python': 'py', 'javascript': 'js', 'java': f'{problem_name.replace("_", "").title()}.java'}
@@ -21,6 +28,10 @@ class TestProblems:
         file_path = Path(__file__).parent / 'reference_solutions' / language / base_name
         return file_path
 
+    # Executes the provided code file in a subprocess using the appropriate runtime or compiler for the specified language and captures the output and timing.
+    # Inputs: language (str), code_path (Path), input_data (str)
+    # Outputs: Tuple containing the trimmed standard output (str) and the execution time in seconds (float)
+    # Contributor: Daniel Neugent
     def run_code(self, language: str, code_path: Path, input_data: str) -> tuple[str, float]:
         """Run code in the specified language and return output and execution time."""
         start_time = time.time()
@@ -69,6 +80,10 @@ class TestProblems:
 
         return output, execution_time
 
+    # Parametrized test method that retrieves problem data, runs the reference solution against stored test cases, and asserts correctness and performance.
+    # Inputs: test_db (fixture), problems_data (fixture), problem_name (str), language (str)
+    # Outputs: None (Asserts success or raises validation errors)
+    # Contributor: Daniel Neugent
     @pytest.mark.parametrize("problem_name", PROBLEM_NAMES)
     @pytest.mark.parametrize("language", SUPPORTED_LANGUAGES)
     def test_problem_solution(self, test_db, problems_data, problem_name, language):

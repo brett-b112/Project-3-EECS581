@@ -1,7 +1,23 @@
+/**
+ * File Description:
+ * This file implements the Authentication Context for the React application. It provides a global
+ * state for user authentication, handling login, logout, token storage (local storage), and 
+ * automatic token refreshing. It also includes a utility for making authenticated HTTP requests.
+ * * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
+/**
+ * Function: useAuth
+ * Description: A custom hook that allows components to consume the AuthContext.
+ * Ensures the hook is used within a valid AuthProvider.
+ * Inputs: None
+ * Outputs: The AuthContext value (user object, login/logout functions, etc.)
+ * Contributors: Jay Patel, Arnav Jain
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -10,11 +26,27 @@ export const useAuth = () => {
   return context;
 };
 
+/**
+ * Function: AuthProvider
+ * Description: The main provider component that wraps the application. It manages the 
+ * state for the current user and loading status.
+ * Inputs: children (React components to be wrapped)
+ * Outputs: JSX Element (AuthContext.Provider)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Check for stored tokens on app load
+  /**
+   * Function: useEffect (Initialization)
+   * Description: Runs on component mount to check LocalStorage for existing session data
+   * to rehydrate the user state.
+   * Inputs: None (Dependency array is empty)
+   * Outputs: None (Updates internal state 'user' and 'loading')
+   * Contributors: Brett Balquist
+   */
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
@@ -27,6 +59,14 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  /**
+   * Function: login
+   * Description: Updates the user state and persists authentication tokens and user data
+   * to LocalStorage.
+   * Inputs: userData (Object), accessToken (String), refreshToken (String)
+   * Outputs: None (Void)
+   * Contributors: Daniel Neugent, Tej Gumaste, Jay Patel, Arnav Jain
+   */
   const login = (userData, accessToken, refreshToken) => {
     setUser(userData);
     localStorage.setItem('accessToken', accessToken);
@@ -34,6 +74,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('userData', JSON.stringify(userData));
   };
 
+  /**
+   * Function: logout
+   * Description: Clears the user state and removes all authentication data from LocalStorage.
+   * Inputs: None
+   * Outputs: None (Void)
+   * Contributors: Tej Gumaste, Daniel Neugent
+   */
   const logout = () => {
     setUser(null);
     localStorage.removeItem('accessToken');
@@ -41,10 +88,25 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('userData');
   };
 
+  /**
+   * Function: getAccessToken
+   * Description: Retrieves the current access token directly from LocalStorage.
+   * Inputs: None
+   * Outputs: accessToken (String) or null
+   * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+   */
   const getAccessToken = () => {
     return localStorage.getItem('accessToken');
   };
 
+  /**
+   * Function: refreshAccessToken
+   * Description: Attempts to get a new access token from the backend using the stored refresh token.
+   * Logs the user out if the refresh fails.
+   * Inputs: None (Uses stored refresh token)
+   * Outputs: newAccessToken (String) or null
+   * Contributors: Jay Patel, Daniel Neugent, Brett Balquist
+   */
   const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
@@ -77,6 +139,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Function: makeAuthenticatedRequest
+   * Description: A wrapper around the fetch API that automatically attaches the Authorization header.
+   * If a 401 error occurs, it attempts to refresh the token and retry the request.
+   * Inputs: url (String), options (Object - fetch options)
+   * Outputs: response (Promise<Response>)
+   * Contributors: Arnav Jain, Tej Gumaste
+   */
   const makeAuthenticatedRequest = async (url, options = {}) => {
     let token = getAccessToken();
 

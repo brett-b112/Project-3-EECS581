@@ -1,6 +1,22 @@
+/*
+  File Description:
+  This file defines the HintViewer component, responsible for fetching, displaying,
+  and revealing progressively detailed hints for a given problem. It manages network
+  requests, hint usage limits, reveal states, warnings, and user interaction.
+  Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, and Arnav Jain.
+*/
+
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 
+/*
+  Component Description:
+  Main HintViewer component that retrieves hint metadata, displays partial/full hints,
+  and handles reveal actions with usage tracking.
+  Inputs: problemId (string/number), onReveal (function)
+  Outputs: JSX rendering the hint viewer UI
+  Contributors: Daniel Neugent, Jay Patel, Arnav Jain
+*/
 const HintViewer = ({ problemId, onReveal }) => {
   const { makeAuthenticatedRequest } = useAuth();
   const [hints, setHints] = useState(null);
@@ -8,6 +24,13 @@ const HintViewer = ({ problemId, onReveal }) => {
   const [revealed, setRevealed] = useState({ partial: false, full: false });
   const [error, setError] = useState(null);
 
+  /*
+    Function Description:
+    Fetches initial hint availability, daily usage, and basic hint metadata from server.
+    Inputs: none
+    Outputs: none
+    Contributors: Tej Gumaste, Brett Balquist
+  */
   const fetchHints = async () => {
     setLoading(true);
     setError(null);
@@ -28,6 +51,14 @@ const HintViewer = ({ problemId, onReveal }) => {
     }
   };
 
+  /*
+    Function Description:
+    Reveals a specific hint level (partial or full), updates usage, adjusts hint state,
+    and notifies parent component.
+    Inputs: level (string: 'partial' or 'full')
+    Outputs: none
+    Contributors: Daniel Neugent, Arnav Jain, Jay Patel
+  */
   const revealHint = async (level) => {
     setLoading(true);
     setError(null);
@@ -45,7 +76,6 @@ const HintViewer = ({ problemId, onReveal }) => {
 
       setRevealed(prev => ({ ...prev, [level]: true }));
 
-      // Update local hints state
       if (hints) {
         setHints(prev => ({
           ...prev,
@@ -67,6 +97,13 @@ const HintViewer = ({ problemId, onReveal }) => {
     }
   };
 
+  /*
+    Function Description:
+    Generates a usage warning message based on hint level and previous reveals.
+    Inputs: level (string)
+    Outputs: string warning message
+    Contributors: Brett Balquist, Tej Gumaste
+  */
   const getWarningMessage = (level) => {
     if (level === 'full') {
       if (revealed.partial) {

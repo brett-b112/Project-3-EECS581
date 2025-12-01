@@ -1,135 +1,102 @@
-#!/usr/bin/env python3
-"""
-Simple demo script showing how the testing suite works.
-This demonstrates testing a reference solution directly.
-"""
-
+import pytest
+import os
+import json
 import subprocess
-import sys
+import tempfile
+import time
 from pathlib import Path
 
-def test_solution(language, problem_name, input_data, expected_output):
-    """Test a single solution with given input."""
-    base_path = Path(__file__).parent / 'tests' / 'reference_solutions'
 
-    if language == 'python':
-        ext, cmd = '.py', ['python3']
-    elif language == 'javascript':
-        ext, cmd = '.js', ['node']
-    elif language == 'java':
-        # For Java, we need to handle class name
-        class_name = problem_name.replace('_', '').title()
-        ext, cmd = f'{class_name}.java', ['java', '-cp', str(base_path / language), 'Main']
-        # Compile first if needed
-        source_file = base_path / language / f'{class_name}.java'
-        if source_file.exists():
-            compile_result = subprocess.run(['javac', str(source_file)], capture_output=True)
+class TestProblems:
+    """Test reference solutions for all problems in all languages."""
+
+    SUPPORTED_LANGUAGES = ['python', 'javascript', 'java']
+    PROBLEM_NAMES = ['two_sum', 'palindrome_number', 'reverse_string', 'fizzbuzz', 'binary_search']
+
+    def get_problem_file(self, problem_name: str, language: str) -> Path:
+        """Get the path to a problem solution file."""
+        lang_ext = {'python': 'py', 'javascript': 'js', 'java': f'{problem_name.replace("_", "").title()}.java'}
+        base_name = f"{problem_name}.{lang_ext[language]}" if language != 'java' else f"{problem_name.replace('_', '').title()}.java"
+
+        file_path = Path(__file__).parent / 'reference_solutions' / language / base_name
+        return file_path
+
+    def run_code(self, language: str, code_path: Path, input_data: str) -> tuple[str, float]:
+        """Run code in the specified language and return output and execution time."""
+        start_time = time.time()
+
+        if language == 'python':
+            result = subprocess.run(
+                ['python3', str(code_path)],
+                input=input_data,
+                text=True,
+                capture_output=True,
+                timeout=30
+            )
+        elif language == 'javascript':
+            result = subprocess.run(
+                ['node', str(code_path)],
+                input=input_data,
+                text=True,
+                capture_output=True,
+                timeout=30
+            )
+        elif language == 'java':
+            # Compile first
+            compile_result = subprocess.run(
+                ['javac', str(code_path)],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
             if compile_result.returncode != 0:
-                print(f"❌ Java compilation failed: {compile_result.stderr.decode()}")
-                return False, "COMPILE_ERROR"
-    else:
-        print(f"❌ Unsupported language: {language}")
-        return False, "UNSUPPORTED_LANGUAGE"
+                return f"Compilation Error: {compile_result.stderr.strip()}", time.time() - start_time
 
-    solution_file = base_path / language / f'{problem_name}{ext}'
-
-    if not solution_file.exists():
-        print(f"❌ Solution file not found: {solution_file}")
-        return False, "FILE_NOT_FOUND"
-
-    try:
-        cmd = cmd + [str(solution_file)]
-        result = subprocess.run(
-            cmd,
-            input=input_data,
-            text=True,
-            capture_output=True,
-            timeout=10
-        )
-
-        output = result.stdout.strip()
-        success = result.returncode == 0 and output == expected_output
-
-        return success, output
-
-    except subprocess.TimeoutExpired:
-        return False, "TIMEOUT"
-    except Exception as e:
-        return False, f"ERROR: {str(e)}"
-
-def main():
-    """Demonstrate the testing suite."""
-
-    # Test problems with sample inputs
-    test_cases = [
-        {
-            'problem': 'two_sum',
-            'input': '[2,7,11,15]\n9',
-            'expected': '[0,1]'
-        },
-        {
-            'problem': 'palindrome_number',
-            'input': '121',
-            'expected': 'true'
-        },
-        {
-            'problem': 'fizzbuzz',
-            'input': '3',
-            'expected': '["1","2","Fizz"]'
-        },
-        {
-            'problem': 'binary_search',
-            'input': '[-1,0,3,5,9,12]\n9',
-            'expected': '4'
-        }
-    ]
-
-    languages = ['python', 'javascript', 'java']
-
-    print("🚀 Leetle Testing Suite Demo")
-    print("=" * 50)
-
-    total_tests = 0
-    passed_tests = 0
-
-    for test_case in test_cases:
-        problem = test_case['problem']
-        print(f"\n📝 Testing {problem.upper()}")
-        print("-" * 30)
-
-        for language in languages:
-            total_tests += 1
-            success, output = test_solution(
-                language,
-                problem,
-                test_case['input'],
-                test_case['expected']
+            # Run if compilation successful
+            main_class_file = str(code_path).replace('.java', '')
+            result = subprocess.run(
+                ['java', '-cp', str(code_path.parent), 'Main'],
+                input=input_data,
+                text=True,
+                capture_output=True,
+                timeout=30
             )
 
-            if success:
-                passed_tests += 1
-                print(f"  ✅ {language}: PASS")
-            else:
-                print(f"  ❌ {language}: FAIL (got: {output})")
+        execution_time = time.time() - start_time
+        output = result.stdout.strip()
+        if result.stderr:
+            output += f"\nSTDERR: {result.stderr.strip()}"
 
-    print("\n" + "=" * 50)
-    print("FINAL RESULTS")
-    print("=" * 50)
-    print(f"Tests run: {total_tests}")
-    print(f"Tests passed: {passed_tests}")
-    print(".1f")
+        return output, execution_time
 
-    if passed_tests == total_tests:
-        print("🎉 ALL DEMO TESTS PASSED!")
-    else:
-        print("⚠️ Some demo tests failed.")
+    @pytest.mark.parametrize("problem_name", PROBLEM_NAMES)
+    @pytest.mark.parametrize("language", SUPPORTED_LANGUAGES)
+    def test_problem_solution(self, test_db, problems_data, problem_name, language):
+        """Test that reference solutions produce correct output for all test cases."""
+        # Get the problem from database
+        problem = problems_data.get(problem_name)
+        assert problem is not None, f"Problem {problem_name} not found in database"
 
-    print("\n" + "=" * 50)
-    print("To run the full testing suite:")
-    print("python tests/test_runner.py")
-    print("python tests/test_runner.py --verbose")
-    print("python tests/test_runner.py --problem two_sum --language python")
-    print("=" * 50)
+        # Get the solution file
+        solution_file = self.get_problem_file(problem_name, language)
+        assert solution_file.exists(), f"Solution file {solution_file} does not exist"
 
-if __name__ == '__main__':
-    main()
+        # Test all test cases
+        test_cases = json.loads(problem.test_cases)
+        for i, test_case in enumerate(test_cases):
+            input_data = test_case['input']
+            expected_output = test_case['output']
+
+            # Run the solution
+            output, exec_time = self.run_code(language, solution_file, input_data)
+
+            assert output == expected_output, (
+                f"Problem: {problem_name}, Language: {language}, Test case {i+1}\n"
+                f"Input: {input_data}\n"
+                f"Expected: {expected_output}\n"
+                f"Got: {output}\n"
+                f"Execution time: {exec_time:.4f}s"
+            )
+
+            # Assert execution time is reasonable (under 1 second for these simple problems)
+            assert exec_time < 1.0, f"Execution time too slow: {exec_time:.4f}s for {problem_name} in {language}"

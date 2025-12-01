@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# This script runs comprehensive tests for all reference solutions in Python, JavaScript, and Java across all problems, supporting both custom execution and pytest integration.
+# Author: Daniel Neugent
+
 """
 Leetle Testing Suite Runner
 
@@ -33,10 +36,18 @@ class TestRunner:
     SUPPORTED_LANGUAGES = ['python', 'javascript', 'java']
     PROBLEM_NAMES = ['two_sum', 'palindrome_number', 'reverse_string', 'fizzbuzz', 'binary_search']
 
+    # Initializes the TestRunner instance with verbosity settings and an empty dictionary to store test results.
+    # Inputs: verbose (bool)
+    # Outputs: None
+    # Contributor: Daniel Neugent
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self.results = {}
 
+    # Constructs the file path for a specific problem's solution file based on the language and naming conventions.
+    # Inputs: problem_name (str), language (str)
+    # Outputs: Path object representing the file location
+    # Contributor: Daniel Neugent
     def get_problem_file(self, problem_name: str, language: str) -> Path:
         """Get the path to a problem solution file."""
         if language == 'java':
@@ -48,6 +59,10 @@ class TestRunner:
         file_path = Path(__file__).parent / 'reference_solutions' / language / base_name
         return file_path
 
+    # Executes the provided code file using the appropriate language interpreter or compiler and returns the output, execution time, and success status.
+    # Inputs: language (str), code_path (Path), input_data (str)
+    # Outputs: Tuple containing output string, execution time float, and success boolean
+    # Contributor: Daniel Neugent
     def run_code(self, language: str, code_path: Path, input_data: str) -> Tuple[str, float, bool]:
         """Run code in the specified language and return output, execution time, and success."""
         start_time = time.time()
@@ -105,6 +120,10 @@ class TestRunner:
         except Exception as e:
             return f"ERROR: {str(e)}", time.time() - start_time, False
 
+    # Orchestrates the testing process by initializing the database, seeding data if necessary, and iterating through problems and languages to run tests.
+    # Inputs: problem_filter (str, optional), language_filter (str, optional)
+    # Outputs: Dictionary containing nested test results
+    # Contributor: Daniel Neugent
     def run_all_tests(self, problem_filter: str = None, language_filter: str = None) -> Dict[str, Dict]:
         """Run all tests and return results."""
         # Initialize database
@@ -138,6 +157,10 @@ class TestRunner:
 
         return self.results
 
+    # Runs all defined test cases for a specific problem and language combination and collects the results.
+    # Inputs: problem_name (str), language (str), problem (Problem object)
+    # Outputs: Dictionary containing status and list of test case results
+    # Contributor: Daniel Neugent
     def test_problem_language(self, problem_name: str, language: str, problem: Problem) -> Dict:
         """Test a single problem in a single language."""
         solution_file = self.get_problem_file(problem_name, language)
@@ -181,6 +204,10 @@ class TestRunner:
 
         return {'status': status, 'tests': results}
 
+    # Populates the database with a predefined set of algorithm problems and their associated metadata if the database is empty.
+    # Inputs: None
+    # Outputs: None (Commits to database)
+    # Contributor: Daniel Neugent
     def seed_problems(self):
         """Seed test problems in database."""
         problems_data = [
@@ -257,6 +284,10 @@ class TestRunner:
             db.session.add(problem)
         db.session.commit()
 
+    # Calculates and displays a formatted summary of the test results, including pass/fail counts and success rates.
+    # Inputs: None
+    # Outputs: None (Prints to stdout)
+    # Contributor: Daniel Neugent
     def print_summary(self):
         """Print test summary."""
         if not self.results:
@@ -305,10 +336,18 @@ class TestRunner:
         else:
             print("⚠️  Some tests failed. Check individual test results above.")
 
+    # Prints a given message to the standard output.
+    # Inputs: message (str)
+    # Outputs: None (Prints to stdout)
+    # Contributor: Daniel Neugent
     def print_message(self, message: str):
         """Print a message."""
         print(message)
 
+    # Executes the tests using the standard pytest module instead of the custom runner logic.
+    # Inputs: None
+    # Outputs: Integer exit code from the pytest process
+    # Contributor: Daniel Neugent
     def run_with_pytest(self) -> int:
         """Run tests using pytest and return exit code."""
         cmd = [sys.executable, '-m', 'pytest', str(Path(__file__).parent / 'test_problems.py'), '-v']
@@ -321,7 +360,10 @@ class TestRunner:
         result = subprocess.run(cmd)
         return result.returncode
 
-
+# Parses command-line arguments and initiates the test runner either in custom mode or via pytest based on user input.
+# Inputs: None (Parses sys.argv)
+# Outputs: None (Exits program with status code)
+# Contributor: Daniel Neugent
 def main():
     parser = argparse.ArgumentParser(description='Run Leetle testing suite')
     parser.add_argument('--problem', choices=TestRunner.PROBLEM_NAMES,

@@ -1,3 +1,6 @@
+# This file configures Pytest fixtures for setting up a Flask test environment, including an in-memory database and seeded test data for algorithm problems.
+# Author: Daniel Neugent
+
 import pytest
 import os
 import sys
@@ -9,9 +12,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app import app, db, Problem
 
+# Creates and configures a temporary Flask application instance with testing settings and an in-memory SQLite database.
+# Inputs: None
+# Outputs: Yields a configured Flask application instance
+# Contributor: Daniel Neugent
 @pytest.fixture(scope='session')
 def flask_app():
-    """Create and configure a test app instance."""
     test_app = Flask(__name__)
     test_app.config['TESTING'] = True
     test_app.config['SECRET_KEY'] = 'test-secret-key'
@@ -23,9 +29,12 @@ def flask_app():
         db.create_all()
         yield test_app
 
+# Establishes a fresh database session for each test function, seeds it with initial data, and handles teardown.
+# Inputs: flask_app (The Flask application fixture)
+# Outputs: Yields a database object connected to the test application
+# Contributor: Daniel Neugent
 @pytest.fixture(scope='function')
 def test_db(flask_app):
-    """Create a fresh database for each test."""
     with flask_app.app_context():
         db.create_all()
         # Seed test problems
@@ -34,15 +43,21 @@ def test_db(flask_app):
         db.session.remove()
         db.drop_all()
 
+# Retrieves all problem records from the test database and organizes them into a dictionary keyed by formatted titles.
+# Inputs: test_db (The database fixture)
+# Outputs: Returns a dictionary of Problem objects
+# Contributor: Daniel Neugent
 @pytest.fixture(scope='function')
 def problems_data(test_db):
-    """Get the test problems data."""
     with test_db.session.begin():
         problems = Problem.query.all()
         return {problem.title.lower().replace(' ', '_'): problem for problem in problems}
 
+# Populates the database with a predefined set of algorithm coding problems including descriptions, examples, and test cases.
+# Inputs: None
+# Outputs: None (Commits changes directly to the database)
+# Contributor: Daniel Neugent
 def seed_test_problems():
-    """Seed the database with test problems."""
     import json
 
     problems_data = [

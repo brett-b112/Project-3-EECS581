@@ -1,6 +1,21 @@
+/*
+  File Description:
+  This file defines the FeedbackModal component, a user interface element for collecting
+  star-based ratings and optional text feedback. It manages form state, handles submission
+  to a backend endpoint, displays success and error states, and resets itself when closed.
+  Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, and Arnav Jain.
+*/
+
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 
+/*
+  Component Description:
+  Main FeedbackModal component that displays a modal window for collecting user feedback.
+  Inputs: isOpen (boolean), onClose (function)
+  Outputs: JSX rendering the modal UI
+  Contributors: Daniel Neugent, Tej Gumaste, Jay Patel
+*/
 const FeedbackModal = ({ isOpen, onClose }) => {
   const { makeAuthenticatedRequest } = useAuth();
   const [rating, setRating] = useState(0);
@@ -9,6 +24,14 @@ const FeedbackModal = ({ isOpen, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
 
+  /*
+    Function Description:
+    Handles form submission, validates rating, sends feedback to backend, and manages
+    UI state changes during the submission lifecycle.
+    Inputs: e (form event)
+    Outputs: none
+    Contributors: Brett Balquist, Arnav Jain
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -49,6 +72,13 @@ const FeedbackModal = ({ isOpen, onClose }) => {
     }
   };
 
+  /*
+    Function Description:
+    Resets feedback form fields and state to initial values.
+    Inputs: none
+    Outputs: none
+    Contributors: Daniel Neugent, Tej Gumaste
+  */
   const resetForm = () => {
     setRating(0);
     setFeedbackText('');
@@ -56,6 +86,13 @@ const FeedbackModal = ({ isOpen, onClose }) => {
     setError(null);
   };
 
+  /*
+    Function Description:
+    Closes the modal after resetting form state.
+    Inputs: none
+    Outputs: none
+    Contributors: Jay Patel, Arnav Jain
+  */
   const closeModal = () => {
     resetForm();
     onClose();
@@ -162,3 +199,4 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 };
 
 export default FeedbackModal;
+

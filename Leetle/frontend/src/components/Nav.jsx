@@ -1,11 +1,32 @@
+/*
+  File Overview: This file defines a responsive navigation bar component for the application.
+  It displays navigation links conditionally based on authentication state, includes mobile menu
+  functionality, and supports user logout handling. Authors: Daniel Neugent, Brett Balquist,
+  Tej Gumaste, Jay Patel, Arnav Jain
+*/
+
 import React, {useState} from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
+/*
+  Component Function: Nav
+  Description: Renders the main site navigation bar with desktop and mobile layouts.
+  Inputs: None (uses internal state and authentication context)
+  Outputs: UI elements and user interface interactions
+  Contributors: Daniel Neugent, Jay Patel, Arnav Jain
+*/
 export default function Nav(){
   const [open, setOpen] = useState(false)
   const { user, logout } = useAuth()
 
+  /*
+    Function: handleLogout
+    Description: Logs out the current user and closes the mobile navigation menu.
+    Inputs: None
+    Outputs: None (performs side-effects via context and state updates)
+    Contributors: Brett Balquist, Tej Gumaste
+  */
   const handleLogout = () => {
     logout()
     setOpen(false)
@@ -73,7 +94,7 @@ export default function Nav(){
             ) : (
               <>
                 <Link to="/login" className="text-white" onClick={() => setOpen(false)}>Login</Link>
-                <Link to="/signup" className="text-white bg-[#5a944f] px-3 py-2 rounded block text-center" onClick={() => setOpen(false)}>Sign Up</Link>
+                <Link to="signup" className="text-white bg-[#5a944f] px-3 py-2 rounded block text-center" onClick={() => setOpen(false)}>Sign Up</Link>
               </>
             )}
           </div>

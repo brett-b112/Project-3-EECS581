@@ -1,7 +1,16 @@
+// File Overview: This file implements a React login component responsible for handling user authentication
+// by collecting credentials, submitting them to the backend, processing responses, and navigating the user
+// to the problem page upon successful login. Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+// Component Function: Login
+// Description: Renders the login page, manages form state, interacts with authentication context, and triggers navigation.
+// Inputs: None (relies on internal React state and form events)
+// Outputs: UI rendering and authentication side-effects
+// Contributors: Daniel Neugent, Tej Gumaste
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -10,6 +19,12 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Function: handleSubmit
+  // Description: Processes the login form submission, sends login request, handles backend responses,
+  // triggers authentication context updates, and redirects the user.
+  // Inputs: e (form submission event)
+  // Outputs: None (side-effects include API calls, state updates, and navigation)
+  // Contributors: Brett Balquist, Jay Patel, Arnav Jain
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -109,3 +124,4 @@ const Login = () => {
 };
 
 export default Login;
+

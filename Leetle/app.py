@@ -1,3 +1,17 @@
+"""
+This file serves as the main backend application for the Leetle coding platform, initializing the Flask app, defining database models, handling authentication via JWT, executing user code in Docker containers, and managing API endpoints for problems, leaderboards, and administrative tasks.
+Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, and Arnav Jain
+"""
+
+
+
+
+"""
+Initializes the Flask application, configures database connections and JWT settings, and imports necessary libraries for server operation.
+Inputs: Environment variables (.env)
+Outputs: Configured Flask application instance
+Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+"""
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -28,6 +42,12 @@ Compress(app)
 db = SQLAlchemy(app)
 
 # Database Models
+"""
+Database model representing a coding challenge, including its description, test cases, and solution data.
+Inputs: title, description, difficulty, examples, test cases
+Outputs: Problem database object
+Contributors: Daniel Neugent, Jay Patel
+"""
 class Problem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -41,6 +61,12 @@ class Problem(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
+"""
+Database model recording a user's code attempt for a specific problem, including execution time and correctness.
+Inputs: user_id, problem_id, language, code, execution status
+Outputs: Submission database object
+Contributors: Tej Gumaste, Arnav Jain
+"""
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -54,6 +80,12 @@ class Submission(db.Model):
     user = db.relationship('User', backref='submissions')
     problem = db.relationship('Problem', backref='submissions')
 
+"""
+Database model managing user authentication credentials, roles, and aggregate streak information.
+Inputs: email, password hash, role
+Outputs: User database object
+Contributors: Brett Balquist, Daniel Neugent
+"""
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -65,6 +97,12 @@ class User(db.Model):
     total_solutions = db.Column(db.Integer, default=0)
     last_submission_date = db.Column(db.Date, nullable=True)
 
+"""
+Database model defining the available gamification rewards, including criteria for earning them and point values.
+Inputs: name, description, criteria JSON, icon, points
+Outputs: Achievement database object
+Contributors: Jay Patel, Tej Gumaste
+"""
 class Achievement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -74,6 +112,12 @@ class Achievement(db.Model):
     points = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
 
+"""
+Association model linking users to the specific achievements they have earned and the timestamp of earning.
+Inputs: user_id, achievement_id
+Outputs: UserAchievement database object
+Contributors: Arnav Jain, Brett Balquist
+"""
 class UserAchievement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -83,6 +127,12 @@ class UserAchievement(db.Model):
     user = db.relationship('User', backref='achievements')
     achievement = db.relationship('Achievement', backref='users')
 
+"""
+Database model tracking detailed performance metrics for a user, such as total attempts and success rates.
+Inputs: user_id, statistical counters
+Outputs: UserStats database object
+Contributors: Daniel Neugent, Jay Patel, Tej Gumaste
+"""
 class UserStats(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -95,6 +145,12 @@ class UserStats(db.Model):
 
     user = db.relationship('User', backref='stats')
 
+"""
+Database model tracking which hints a user has revealed for specific problems to enforce daily limits.
+Inputs: user_id, problem_id, hint_level
+Outputs: UserHintUsage database object
+Contributors: Brett Balquist, Arnav Jain
+"""
 class UserHintUsage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -105,6 +161,12 @@ class UserHintUsage(db.Model):
     user = db.relationship('User', backref='hint_usage')
     problem = db.relationship('Problem', backref='hint_usage')
 
+"""
+Database model storing anonymous or signed user feedback and ratings regarding the platform.
+Inputs: user_id (optional), rating, feedback text
+Outputs: FeedbackSubmission database object
+Contributors: Tej Gumaste, Daniel Neugent
+"""
 class FeedbackSubmission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Optional for anonymous
@@ -113,6 +175,13 @@ class FeedbackSubmission(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Helper functions
+
+"""
+Selects a problem based on the current day of the month to ensure all users see the same daily challenge.
+Inputs: None
+Outputs: Problem object or None
+Contributors: Daniel Neugent, Brett Balquist
+"""
 def get_today_problem():
     # For simplicity, cycle through problems based on day
     day = datetime.now().day % db.session.query(Problem).count()
@@ -120,6 +189,12 @@ def get_today_problem():
         day = db.session.query(Problem).count()
     return db.session.get(Problem, day)
 
+"""
+Executes user-submitted code within a secure isolated environment using temporary files and subprocess calls.
+Inputs: language (string), code (string), input_data (string)
+Outputs: output (string), execution_time (float)
+Contributors: Tej Gumaste, Arnav Jain, Jay Patel
+"""
 def run_code_in_docker(language, code, input_data):
     execution_time = 0.0
     output = ""
@@ -210,6 +285,12 @@ def run_code_in_docker(language, code, input_data):
 
     return output, execution_time
 
+"""
+Computes the current streak of consecutive days a user has successfully solved a problem.
+Inputs: user (User object)
+Outputs: streak (integer)
+Contributors: Brett Balquist, Daniel Neugent
+"""
 def calculate_user_streak(user):
     """Calculate current streak based on submission dates"""
     from collections import defaultdict
@@ -237,6 +318,12 @@ def calculate_user_streak(user):
 
     return streak
 
+"""
+Updates the user's statistics, including success rate, favorite language, and streak counters, after a submission.
+Inputs: user (User object), language (string), is_correct (boolean)
+Outputs: None
+Contributors: Jay Patel, Arnav Jain
+"""
 def update_user_stats(user, language, is_correct):
     """Update user statistics and streaks after a submission"""
     # Get or create user stats
@@ -271,6 +358,12 @@ def update_user_stats(user, language, is_correct):
 
     db.session.commit()
 
+"""
+Evaluates the user's progress against achievement criteria and awards new achievements if conditions are met.
+Inputs: user (User object)
+Outputs: None
+Contributors: Tej Gumaste, Brett Balquist, Daniel Neugent
+"""
 def check_and_award_achievements(user):
     """Check if user has earned any new achievements"""
     achievements = Achievement.query.all()
@@ -296,6 +389,12 @@ def check_and_award_achievements(user):
 
     db.session.commit()
 
+"""
+Runs the user's submitted code against all defined test cases for a specific problem to verify correctness.
+Inputs: problem (Problem object), language (string), code (string)
+Outputs: is_valid (boolean), total_execution_time (float)
+Contributors: Daniel Neugent, Jay Patel
+"""
 def validate_submission(problem, language, code):
     # Run code against each test case
     test_cases = json.loads(problem.test_cases)
@@ -314,6 +413,12 @@ def validate_submission(problem, language, code):
     return True, total_time
 
 # JWT Helper Functions
+"""
+Creates a long-lived JSON Web Token used to obtain new access tokens without re-login.
+Inputs: user_id (integer)
+Outputs: encoded_token (string)
+Contributors: Arnav Jain, Tej Gumaste
+"""
 def generate_access_token(user_id):
     payload = {
         'user_id': user_id,
@@ -323,6 +428,12 @@ def generate_access_token(user_id):
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
+"""
+Creates a long-lived JSON Web Token used to obtain new access tokens without re-login.
+Inputs: user_id (integer)
+Outputs: encoded_token (string)
+Contributors: Arnav Jain, Tej Gumaste
+"""
 def generate_refresh_token(user_id):
     payload = {
         'user_id': user_id,
@@ -332,6 +443,12 @@ def generate_refresh_token(user_id):
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
+"""
+Decodes and validates the signature and expiration of a JSON Web Token.
+Inputs: token (string)
+Outputs: payload (dictionary) or None
+Contributors: Brett Balquist, Jay Patel, Daniel Neugent
+"""
 def verify_token(token):
     try:
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
@@ -341,6 +458,12 @@ def verify_token(token):
     except jwt.InvalidTokenError:
         return None
 
+"""
+Decorator that ensures a valid access token is present in the request headers before allowing access to a route.
+Inputs: f (function)
+Outputs: decorated_function (function)
+Contributors: Tej Gumaste, Daniel Neugent, Arnav Jain, Brett Balquist, Jay Patel
+"""
 def token_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -359,6 +482,12 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+"""
+Decorator that restricts access to a route to users with the 'admin' role only.
+Inputs: f (function)
+Outputs: decorated_function (function)
+Contributors: Jay Patel, Brett Balquist
+"""
 def admin_required(f):
     @wraps(f)
     @token_required
@@ -369,6 +498,12 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+"""
+Registers a new user account after validating email format and password strength.
+Inputs: JSON payload (email, password)
+Outputs: JSON response (success message, tokens, user info) or error
+Contributors: Daniel Neugent, Arnav Jain
+"""
 # Authentication Routes
 @app.route('/auth/signup', methods=['POST'])
 def signup():
@@ -419,6 +554,12 @@ def signup():
         db.session.rollback()
         return jsonify({'error': 'Failed to create user'}), 500
 
+"""
+Authenticates a user by verifying credentials and returning access and refresh tokens.
+Inputs: JSON payload (email, password)
+Outputs: JSON response (tokens, user info) or error
+Contributors: Daniel Neugent, Arnav Jain
+"""
 @app.route('/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -448,6 +589,12 @@ def login():
         }
     }), 200
 
+"""
+Issues a new access token if a valid refresh token is provided.
+Inputs: JSON payload (refresh_token)
+Outputs: JSON response (new access_token) or error
+Contributors: Tej Gumaste, Brett Balquist
+"""
 @app.route('/auth/refresh', methods=['POST'])
 def refresh_token():
     data = request.get_json()
@@ -475,11 +622,23 @@ def refresh_token():
         'access_token': new_access_token
     }), 200
 
+"""
+Renders the main landing page of the application.
+Inputs: None
+Outputs: Rendered HTML template
+Contributors: Jay Patel
+"""
 # Routes
 @app.route('/')
 def home():
     return render_template('home.html')
 
+"""
+Retrieves the details of the daily problem, including description and examples.
+Inputs: None
+Outputs: JSON response (problem details) or error
+Contributors: Brett Balquist, Daniel Neugent
+"""
 @app.route('/problem')
 def problem():
     try:
@@ -499,6 +658,12 @@ def problem():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+"""
+Processes a code submission, validates it against test cases, and updates user stats.
+Inputs: JSON payload (language, code), User ID (from token)
+Outputs: JSON response (success status, execution time) or error
+Contributors: Tej Gumaste, Arnav Jain, Jay Patel
+"""
 @app.route('/submit', methods=['POST'])
 @token_required
 def submit():
@@ -544,6 +709,12 @@ def submit():
 
 # New API Routes for Sprint 3
 
+"""
+Retrieves a ranked list of users based on streaks and success rates, filtered by time period.
+Inputs: Query parameters (period, limit)
+Outputs: JSON response (leaderboard list, current user rank)
+Contributors: Brett Balquist, Tej Gumaste, Daniel Neugent
+"""
 @app.route('/api/leaderboard')
 @token_required
 def get_leaderboard():
@@ -608,6 +779,12 @@ def get_leaderboard():
         'period': period
     }), 200
 
+"""
+Fetches detailed statistics, achievements, and language usage data for a specific user.
+Inputs: user_id (integer)
+Outputs: JSON response (stats, achievements, language breakdown)
+Contributors: Jay Patel, Arnav Jain
+"""
 @app.route('/api/user/stats/<int:user_id>')
 @token_required
 def get_user_stats(user_id):
@@ -678,6 +855,12 @@ def get_user_stats(user_id):
         'language_stats': language_stats
     }), 200
 
+"""
+Retrieves a list of all problems with their metadata and success rates for administrative review.
+Inputs: None (Requires Admin Token)
+Outputs: JSON response (list of problems)
+Contributors: Daniel Neugent, Brett Balquist
+"""
 @app.route('/api/admin/problems', methods=['GET'])
 @admin_required
 def get_admin_problems():
@@ -703,6 +886,12 @@ def get_admin_problems():
 
     return jsonify({'problems': problems_data}), 200
 
+"""
+Allows an admin to create a new coding problem with description and test cases.
+Inputs: JSON payload (title, description, difficulty, test_cases)
+Outputs: JSON response (success message, problem_id)
+Contributors: Daniel Neugent, Tej Gumaste
+"""
 @app.route('/api/admin/problems', methods=['POST'])
 @admin_required
 def create_problem():
@@ -744,6 +933,12 @@ def create_problem():
         db.session.rollback()
         return jsonify({'error': 'Failed to create problem'}), 500
 
+"""
+Updates the details of an existing problem identified by its ID.
+Inputs: problem_id (integer), JSON payload (fields to update)
+Outputs: JSON response (success message) or error
+Contributors: Jay Patel, Brett Balquist
+"""
 @app.route('/api/admin/problems/<int:problem_id>', methods=['PUT'])
 @admin_required
 def update_problem(problem_id):
@@ -775,6 +970,12 @@ def update_problem(problem_id):
         db.session.rollback()
         return jsonify({'error': 'Failed to update problem'}), 500
 
+"""
+Deletes a specific problem from the database.
+Inputs: problem_id (integer)
+Outputs: JSON response (success message) or error
+Contributors: Arnav Jain, Daniel Neugent
+"""
 @app.route('/api/admin/problems/<int:problem_id>', methods=['DELETE'])
 @admin_required
 def delete_problem(problem_id):
@@ -791,6 +992,12 @@ def delete_problem(problem_id):
         db.session.rollback()
         return jsonify({'error': 'Failed to delete problem'}), 500
 
+"""
+Retrieves a list of all registered users and their basic statistics for admin management.
+Inputs: None (Requires Admin Token)
+Outputs: JSON response (list of users)
+Contributors: Tej Gumaste, Jay Patel
+"""
 @app.route('/api/admin/users')
 @admin_required
 def get_admin_users():
@@ -812,6 +1019,12 @@ def get_admin_users():
 
     return jsonify({'users': users_data}), 200
 
+"""
+Aggregates and returns platform-wide analytics such as total submissions and difficulty breakdowns.
+Inputs: None (Requires Admin Token)
+Outputs: JSON response (overview stats, difficulty breakdown)
+Contributors: Brett Balquist, Arnav Jain, Daniel Neugent
+"""
 @app.route('/api/admin/analytics')
 @admin_required
 def get_admin_analytics():
@@ -857,6 +1070,12 @@ def get_admin_analytics():
         'difficulty_breakdown': difficulty_stats
     }), 200
 
+"""
+Returns a list of all available achievements and indicates which ones the current user has earned.
+Inputs: User ID (from token)
+Outputs: JSON response (list of achievements)
+Contributors: Tej Gumaste, Jay Patel
+"""
 @app.route('/api/achievements')
 @token_required
 def get_achievements():
@@ -878,6 +1097,12 @@ def get_achievements():
 
     return jsonify({'achievements': achievements_data}), 200
 
+"""
+Checks the availability of hints for a specific problem and the user's daily hint usage.
+Inputs: problem_id (integer), User ID (from token)
+Outputs: JSON response (hint availability, usage counts)
+Contributors: Daniel Neugent, Brett Balquist
+"""
 @app.route('/api/hints/<int:problem_id>')
 @token_required
 def get_hints(problem_id):
@@ -928,6 +1153,12 @@ def get_hints(problem_id):
 
     return jsonify(response), 200
 
+"""
+Reveals a specific hint level (partial or full) for a problem, updating the user's daily usage count.
+Inputs: problem_id (integer), hint_level (string), User ID (from token)
+Outputs: JSON response (hint text, cost info) or error
+Contributors: Daniel Neugent, Tej Gumaste, Jay Patel
+"""
 @app.route('/api/hints/<int:problem_id>/<hint_level>', methods=['POST'])
 @token_required
 def reveal_hint(problem_id, hint_level):
@@ -997,6 +1228,12 @@ def reveal_hint(problem_id, hint_level):
             # Partial already revealed
             return jsonify({'error': 'Hint already revealed'}), 400
 
+"""
+Accepts and stores user feedback ratings and comments about the platform.
+Inputs: JSON payload (rating, feedback_text)
+Outputs: JSON response (success message)
+Contributors: Arnav Jain, Brett Balquist
+"""
 @app.route('/api/feedback/submit', methods=['POST'])
 def submit_feedback():
     """Submit user feedback (anonymous OK)"""
@@ -1028,6 +1265,13 @@ def submit_feedback():
         db.session.rollback()
         return jsonify({'error': 'Failed to submit feedback'}), 500
 
+
+"""
+Entry point for the script that initializes the database tables and seeds default problems, achievements, and admin users if they do not exist.
+Inputs: None
+Outputs: Running Flask server on port 5001
+Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+"""
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

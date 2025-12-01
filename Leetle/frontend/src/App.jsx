@@ -1,3 +1,7 @@
+/*
+  Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, and Arnav Jain
+  Description: This file defines the root App component, which serves as the central hub for application routing, global authentication state management via AuthProvider, and general layout structure, while utilizing React Suspense for performance-optimized lazy loading of page components.
+*/
 import React, { Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Nav from './components/Nav'

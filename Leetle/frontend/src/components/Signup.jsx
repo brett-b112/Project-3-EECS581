@@ -1,7 +1,23 @@
+// Signup component with block comments added for clarity
+/*
+  File Overview: Implements the Signup component responsible for creating new user accounts.
+  It collects user credentials, validates input, sends signup requests, handles responses,
+  and logs the user in upon successful registration. Authors: Daniel Neugent, Brett Balquist,
+  Tej Gumaste, Jay Patel, Arnav Jain
+*/
+
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
+/*
+  Component Function: Signup
+  Description: Renders the signup form and manages all related user input, validation,
+  API communication, and authentication integration.
+  Inputs: None (uses React state and form events)
+  Outputs: UI rendering and authentication side-effects
+  Contributors: Daniel Neugent, Jay Patel
+*/
 const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,6 +27,14 @@ const Signup = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  /*
+    Function: handleSubmit
+    Description: Handles signup form submission, performs password validation,
+    sends signup request to backend, logs user in if successful, and redirects.
+    Inputs: e (form submission event)
+    Outputs: None (performs API calls, sets state, navigation)
+    Contributors: Brett Balquist, Tej Gumaste, Arnav Jain
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -143,3 +167,4 @@ const Signup = () => {
 };
 
 export default Signup;
+
