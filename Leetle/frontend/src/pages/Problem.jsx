@@ -1,3 +1,9 @@
+/*
+ * File: Problem.jsx
+ * Description: This file contains the Problem component, which handles the core coding challenge interface.
+ * It manages problem fetching, code submission, result display, and interactive elements like toasts and confetti.
+ * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 import React, { useEffect, useState, useRef } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -5,6 +11,14 @@ import CodeEditor from '../components/CodeEditor'
 import Toast from '../components/Toast'
 import HintViewer from '../components/HintViewer'
 import '../styles/Problem.css'
+
+/*
+ * Function: Problem
+ * Description: Main component for the problem page. Orchestrates code editing, submission, and feedback.
+ * Inputs: None
+ * Outputs: JSX Element (Problem Page UI)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 
 export default function Problem() {
   const { user, makeAuthenticatedRequest } = useAuth()
@@ -43,7 +57,13 @@ export default function Problem() {
 
     fetchProblem()
   }, [])
-
+/*
+   * Function: handleSubmit
+   * Description: Sends the user's code to the backend for execution and grading. Handles the response and updates UI.
+   * Inputs: None (Uses 'code' and 'language' state)
+   * Outputs: None (Updates result state, triggers toasts/confetti)
+   * Contributors: Brett Balquist, Arnav Jain, Daniel Neugent
+   */
   async function handleSubmit() {
     setSubmitting(true)
     setResult(null)
@@ -87,15 +107,35 @@ export default function Problem() {
     }
   }
 
+  /*
+   * Function: addToast
+   * Description: Adds a new temporary notification message to the toast queue.
+   * Inputs: message (String), type (String)
+   * Outputs: None (Updates toasts state)
+   * Contributors: Tej Gumaste
+   */
+
   function addToast(message, type = 'info') {
     const id = Date.now() + Math.random()
     setToasts(t => [...t, { id, message, type }])
   }
-
+  /*
+   * Function: removeToast
+   * Description: Removes a specific toast notification by ID.
+   * Inputs: id (Number)
+   * Outputs: None (Updates toasts state)
+   * Contributors: Jay Patel
+   */
   function removeToast(id) {
     setToasts(t => t.filter(x => x.id !== id))
   }
-
+  /*
+   * Function: launchConfetti
+   * Description: Creates and animates confetti elements on the screen for a celebration effect.
+   * Inputs: None
+   * Outputs: None (Manipulates DOM elements)
+   * Contributors: Arnav Jain
+   */
   function launchConfetti() {
     const c = confettiRef.current
     if (!c) return
@@ -247,7 +287,13 @@ export default function Problem() {
     </div>
   )
 }
-
+/*
+ * Function: downloadCode
+ * Description: Generates a text file from the code string and triggers a browser download.
+ * Inputs: code (String), language (String)
+ * Outputs: None (Triggers file download)
+ * Contributors: Daniel Neugent, Brett Balquist
+ */
 function downloadCode(code, language) {
   const ext = language === 'python' ? 'py' : language === 'javascript' ? 'js' : 'cpp'
   const blob = new Blob([code], { type: 'text/plain' })

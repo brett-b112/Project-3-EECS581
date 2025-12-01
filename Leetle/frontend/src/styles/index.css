@@ -1,3 +1,12 @@
+/*
+ * File Overview - index.css:
+ * This file serves as the global stylesheet for the Leetle application.
+ * It defines root-level styles, including CSS custom properties (variables) for
+ * the color palette, fonts, and other thematic elements inspired by Wordle.
+ * It also includes basic resets and default styles for the body to ensure
+ * a consistent look and feel across all components.
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

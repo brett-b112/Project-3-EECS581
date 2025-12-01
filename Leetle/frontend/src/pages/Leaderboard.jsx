@@ -1,6 +1,19 @@
+/*
+ * File: Leaderboard.jsx
+ * Description: This file contains the Leaderboard component, which displays user rankings, streaks, and success rates.
+ * It supports filtering by time period (all-time, weekly, daily) and highlights the current user's rank.
+ * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 
+/*
+ * Function: Leaderboard
+ * Description: Main component for the leaderboard. Fetches and displays ranking data.
+ * Inputs: None
+ * Outputs: JSX Element (Leaderboard UI)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 export default function Leaderboard() {
   const { user, makeAuthenticatedRequest } = useAuth()
   const [leaderboard, setLeaderboard] = useState([])
@@ -12,6 +25,13 @@ export default function Leaderboard() {
     fetchLeaderboard()
   }, [period])
 
+  /*
+   * Function: fetchLeaderboard
+   * Description: Fetches leaderboard data from the API based on the selected time period.
+   * Inputs: None (Uses 'period' state)
+   * Outputs: Updates state (leaderboard, currentUserRank, loading)
+   * Contributors: Tej Gumaste, Daniel Neugent
+   */
   const fetchLeaderboard = async () => {
     setLoading(true)
     try {
@@ -28,13 +48,26 @@ export default function Leaderboard() {
       setLoading(false)
     }
   }
-
+  /*
+   * Function: getDifficultyColor
+   * Description: Determines the color styling for success rate badges.
+   * Inputs: successRate (Number)
+   * Outputs: String (Tailwind CSS classes)
+   * Contributors: Brett Balquist
+   */
   const getDifficultyColor = (successRate) => {
     if (successRate >= 80) return 'text-green-600 bg-green-50 border-green-200'
     if (successRate >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
     return 'text-red-600 bg-red-50 border-red-200'
   }
 
+  /*
+   * Function: getRankBadge
+   * Description: Generates a badge UI element for the top 3 ranks or a standard badge for others.
+   * Inputs: rank (Number), isCurrentUser (Boolean)
+   * Outputs: JSX Element (Span with styles)
+   * Contributors: Arnav Jain, Jay Patel
+   */
   const getRankBadge = (rank, isCurrentUser) => {
     let badgeClass = 'px-2 py-1 rounded-full text-xs font-medium '
     let badgeText = rank.toString()
@@ -59,6 +92,13 @@ export default function Leaderboard() {
     return <span className={badgeClass}>{badgeText}</span>
   }
 
+  /*
+   * Function: getStreakIcon
+   * Description: Returns an emoji icon representing the user's current streak intensity.
+   * Inputs: streak (Number)
+   * Outputs: String (Emoji character)
+   * Contributors: Daniel Neugent, Tej Gumaste
+   */
   const getStreakIcon = (streak) => {
     if (streak >= 7) return '🔥'
     if (streak >= 3) return '⚡'

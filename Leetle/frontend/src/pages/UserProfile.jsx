@@ -1,7 +1,22 @@
+/*
+ * File: UserProfile.jsx
+ * Description: This file contains the UserProfile component, which displays a user's statistics, achievements, and language preferences.
+ * It also provides access to the feedback modal.
+ * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '../components/FeedbackModal';
+
+/*
+ * Function: UserProfile
+ * Description: Main component for the user profile page. Fetches user stats and renders the profile layout.
+ * Inputs: None
+ * Outputs: JSX Element (User Profile UI)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 
 const UserProfile = () => {
   const { user, makeAuthenticatedRequest } = useAuth();
@@ -20,6 +35,13 @@ const UserProfile = () => {
     fetchUserProfile();
   }, [user, navigate]);
 
+  /*
+   * Function: fetchUserProfile
+   * Description: Fetches detailed user statistics and achievement data from the backend.
+   * Inputs: None
+   * Outputs: Updates state (userStats, achievements, loading)
+   * Contributors: Jay Patel, Tej Gumaste
+   */
   const fetchUserProfile = async () => {
     setLoading(true);
     try {
@@ -44,12 +66,26 @@ const UserProfile = () => {
     }
   };
 
+  /*
+   * Function: getStreakIcon
+   * Description: Returns a fire/sparkle emoji based on the length of the user's streak.
+   * Inputs: streak (Number)
+   * Outputs: String (Emoji character)
+   * Contributors: Daniel Neugent
+   */
   const getStreakIcon = (streak) => {
     if (streak >= 7) return '🔥';
     if (streak >= 3) return '⚡';
     return '✨';
   };
 
+  /*
+   * Function: getSuccessRateColor
+   * Description: Returns Tailwind CSS color classes based on the user's success rate.
+   * Inputs: rate (Number)
+   * Outputs: String (CSS class name)
+   * Contributors: Brett Balquist, Arnav Jain
+   */
   const getSuccessRateColor = (rate) => {
     if (rate >= 80) return 'text-green-600';
     if (rate >= 60) return 'text-yellow-600';

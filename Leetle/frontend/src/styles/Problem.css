@@ -1,5 +1,12 @@
-/* Problem.css - Wordle-styled component styles */
-
+/*
+ * File Overview - Problem.css:
+ * This CSS file contains styles for the main game page of the Leetle application.
+ * It styles the core interactive elements of the puzzle, including the game board
+ * grid, the on-screen keyboard, and the individual tiles. It defines the visual
+ * feedback for letter states (correct, present, absent) and includes styles for
+ * various game-related components like modals for settings, help, and statistics.
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 .problem-container {
   max-width: 1200px;
   margin: 0 auto;

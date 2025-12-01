@@ -1,7 +1,20 @@
+/*
+ * File: Home.jsx
+ * Description: This file contains the Home component, which serves as the landing page for the application.
+ * It displays the daily coding challenge, introduction to Leetle, and practice/learn info cards.
+ * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../styles/Home.css'
 
+/*
+ * Function: Home
+ * Description: Renders the home page, fetches the daily problem title/description, and provides navigation.
+ * Inputs: None
+ * Outputs: JSX Element (Home Page UI)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 export default function Home() {
   const [problem, setProblem] = useState(null)
   

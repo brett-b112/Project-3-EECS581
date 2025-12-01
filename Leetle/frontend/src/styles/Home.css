@@ -1,4 +1,15 @@
-/* Home.css - Wordle-styled component styles */
+/*
+ * Home.css
+ *
+ * File Overview:
+ * This CSS file provides the styling for the home page of the Leetle application.
+ * It adopts a Wordle-inspired design aesthetic. The file includes styles for the
+ * main container, a header section with a title and play button, a card for
+ * displaying the 'Problem of the Day', and a grid of informational cards.
+ * It also contains responsive styles to ensure the layout adapts to different
+ * screen sizes.
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 
 .home-container {
   max-width: 600px;

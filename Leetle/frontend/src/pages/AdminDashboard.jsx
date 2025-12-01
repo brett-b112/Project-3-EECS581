@@ -1,7 +1,23 @@
+/*
+ * File: AdminDashboard.jsx
+ * Description: This file contains the AdminDashboard component, which provides an interface for administrators 
+ * to manage problems and view analytics. It includes features for creating, editing, and deleting problems, 
+ * as well as displaying key metrics about users, problems, and submissions.
+ * Authors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
+
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
+
+/*
+ * Function: AdminDashboard
+ * Description: Main component for the admin dashboard. Renders analytics and problem management tables.
+ * Inputs: None
+ * Outputs: JSX Element (Admin Dashboard UI)
+ * Contributors: Daniel Neugent, Brett Balquist, Tej Gumaste, Jay Patel, Arnav Jain
+ */
 export default function AdminDashboard() {
   const { user, makeAuthenticatedRequest } = useAuth()
   const navigate = useNavigate()
@@ -18,7 +34,7 @@ export default function AdminDashboard() {
     output_example: '',
     test_cases: []
   })
-
+//UseEffect overview: Validates the user's admin status and fetches necessary data
   useEffect(() => {
     if (!user) {
       navigate('/login')
@@ -33,6 +49,13 @@ export default function AdminDashboard() {
     fetchData()
   }, [user, navigate])
 
+   /*
+   * Function: fetchData
+   * Description: Fetches problems and analytics data from the backend server.
+   * Inputs: None
+   * Outputs: Updates state (problems, analytics, loading)
+   * Contributors: Daniel Neugent, Brett Balquist
+   */
   const fetchData = async () => {
     setLoading(true)
     try {
@@ -52,7 +75,13 @@ export default function AdminDashboard() {
       setLoading(false)
     }
   }
-
+/*
+   * Function: handleCreateProblem
+   * Description: Handles the form submission for creating a new problem. Validates JSON test cases and sends a POST request.
+   * Inputs: e (Event object)
+   * Outputs: None (Alerts user and updates state upon success/failure)
+   * Contributors: Tej Gumaste, Jay Patel, Arnav Jain
+   */
   const handleCreateProblem = async (e) => {
     e.preventDefault()
 
@@ -93,7 +122,13 @@ export default function AdminDashboard() {
       alert('Error creating problem')
     }
   }
-
+  /*
+   * Function: handleDeleteProblem
+   * Description: Deletes a specific problem after user confirmation.
+   * Inputs: problemId (String/Number - The ID of the problem to delete)
+   * Outputs: None (Alerts user and refreshes data)
+   * Contributors: Daniel Neugent, Arnav Jain
+   */
   const handleDeleteProblem = async (problemId) => {
     if (!confirm('Are you sure you want to delete this problem?')) return
 
@@ -113,7 +148,13 @@ export default function AdminDashboard() {
       alert('Error deleting problem')
     }
   }
-
+  /*
+   * Function: resetForm
+   * Description: Resets the problem creation form to its default state and closes the modal.
+   * Inputs: None
+   * Outputs: Updates state (formData, editingProblem, showCreateModal)
+   * Contributors: Brett Balquist, Tej Gumaste
+   */
   const resetForm = () => {
     setFormData({
       title: '',
@@ -127,6 +168,13 @@ export default function AdminDashboard() {
     setShowCreateModal(false)
   }
 
+  /*
+   * Function: getDifficultyColor
+   * Description: Returns the Tailwind CSS classes for the difficulty badge based on difficulty level.
+   * Inputs: difficulty (String - 'Easy', 'Medium', 'Hard')
+   * Outputs: String (CSS class names)
+   * Contributors: Jay Patel
+   */
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case 'Easy': return 'text-green-600 bg-green-50'
